@@ -64,53 +64,42 @@ traits <- merge(leaf, root, by = 'code')
 # subset just variables of interest, excluding petiole data since it is absent for
 # needle-leaf species 
 
-traits <- select(traits, code, species = spp.x, SLA_leaf, LDMC_leaf, LMA_leaf, 
+traits <- select(traits, code, WFDP_Code = WFDP_Code.x, sub_plot = sub_plot.x, Host_ID = Host_ID.x, SLA_leaf, LDMC_leaf, LMA_leaf, 
                  leaf_pct_N, leaf_pct_C, leaf_CN, leaf_15N, leaf_13C, specific_root_length, specific_root_area,
                  root_dry_matter_cont, root_CN, root_15N, root_13C, avg_root_dia, root_pct_N, root_pct_C)
 
 # make species a factor 
-
-traits$species <- as.factor(traits$species)
+traits$Host_ID <- as.factor(traits$Host_ID)
 
 # filter out PSME as a host since there were so few sampled 
-traits <- traits %>% filter(species != 'PSME')
+traits <- traits %>% filter(Host_ID != 'PSME')
 
+
+# filter out T-TABR-03 as a host since it had no fungal community data 
+traits <- traits %>% filter(code != 'T-TABR-03')
 
 ##############################################
 ## create species x site matrix 
 
-# load in tree locations data from WFDP
+# load in all WFDP environmental data 
 
-sites <- read.csv("trait_trees_locations.csv")
+x # This can be updated when krieged data is in hand 
 
-# grab just sub_plot (referring to the subplot in WFDP - the site level) and species 
+env <- read.csv("~/Dropbox/WSU/WFDP_Chapter_3_Project/Enviro_Data/WFDP_enviro_data_all.csv")
 
-sites <- select(sites, sub_plot, species)
+# grab just sub_plot (referring to the subplot in WFDP - the site level) and Host_ID
+
+env <- select(env, Host_ID, sub_plot)
 
 
 # create a presence-absence matrix from these 
-sites_tree <- sites %>%
+sites_tree <- env %>%
   mutate(presence = 1) %>%
-  pivot_wider(names_from = species, values_from = presence, values_fill = list(presence = 0))
+  pivot_wider(names_from = Host_ID, values_from = presence, values_fill = list(presence = 0))
 
 print(sites_tree)
 
-#remove PSME because there's only one sample 
-sites_tree <- select(sites_tree, -(PSME)) 
-
-#now only 7 species 
-
-# remove the TABR in subplot B02 because it doesn't have any associated 
-# fungal community data 
-
 sites_tree$sub_plot <- as.factor(sites_tree$sub_plot)
-
-# it's okay that I'm removing according the sub_plot factor because there's only one tree 
-# in B02, otherwise I wouldn't want to do it this way. 
-sites_tree <- sites_tree %>% filter(sub_plot != 'B02')
-
-# filter out site D13 since that was where the PSME was
-sites_tree <- sites_tree %>% filter(sub_plot != 'D13')
 
 #move subplot into the rownames 
 sites_tree <- sites_tree %>%
@@ -119,11 +108,10 @@ sites_tree <- sites_tree %>%
 ##############################################
 ## create species x trait matrix 
 
-# bit more formatting to make it suitable for the fundiversity package 
 # need species as the rownames and columns to only be the traits 
 
 # remove code column 
-traits_tree <- subset(traits, select = -(code))
+traits_tree <- subset(traits, select = -c(code, WFDP_Code, sub_plot))
 
 #######################
 # pause and look at variation in raw traits between species 
@@ -173,7 +161,7 @@ root_CN
 summary(traits_tree)
 
 #need to get average traits for each species 
-traits_tree <- traits_tree %>% group_by(species) %>%
+traits_tree <- traits_tree %>% group_by(Host_ID) %>%
   summarise(across(everything(), mean))
 
 
@@ -182,7 +170,7 @@ traits_tree <- traits_tree %>% group_by(species) %>%
 
 #move species into the rownames 
 traits_tree <- traits_tree %>%
-  column_to_rownames(var = "species")
+  column_to_rownames(var = "Host_ID")
 
 
 #scaling
@@ -210,24 +198,24 @@ traits_tree_sc <- as.data.frame(traits_tree_sc)
 # make a scaled dataset that doesn't have rownames 
 
 scale_4_plots <- traits_tree_sc %>%
-  rownames_to_column(var = "species")
+  rownames_to_column(var = "Host_ID")
 
 
 # backtrack formatting a bit 
 # move rownames back into a column 
 long_traits_tree_sc <- traits_tree_sc %>%
-  rownames_to_column(var = "species")
+  rownames_to_column(var = "Host_ID")
 
 # Convert to long format for ggplot
-long_traits_tree_sc <- pivot_longer(long_traits_tree_sc, cols = -species, names_to = "trait", values_to = "value")
+long_traits_tree_sc <- pivot_longer(long_traits_tree_sc, cols = -Host_ID, names_to = "trait", values_to = "value")
 
 # Boxplot
-trait_plot <- ggplot(long_traits_tree_sc, aes(x = species, y = value, fill = species)) +
+trait_plot <- ggplot(long_traits_tree_sc, aes(x = Host_ID, y = value, fill = Host_ID)) +
   geom_boxplot() +
   facet_wrap(~trait, scales = "free_y") +  # Separate plots for each trait
   theme_minimal() +
   labs(title = "Trait Variation Across Species", y = "Trait Value") +
-  theme(legend.position = "none") + # Removes legend since species are on x-axis
+  theme(legend.position = "none") + 
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
 trait_plot
@@ -246,7 +234,7 @@ trait_plot
 # first need to check for autocorrelation in my traits, since many of them are very related
 
 # remove code and species columns to get everything numeric
-traits_corr <- subset(traits, select = -c(code, species))
+traits_corr <- subset(traits, select = -c(code, WFDP_Code, sub_plot, Host_ID))
 
 cor_matrix <- cor(traits_corr, use = "everything")
 print(cor_matrix)
@@ -268,7 +256,7 @@ corrplot(cor_matrix, method = "color", type = "upper", tl.cex = 0.7)
 # trying with just removing these 3 and we'll see how it goes 
 
 # traits 
-traits_nocorr <- subset(traits, select = -c(code, species, leaf_CN, root_CN, specific_root_area, 
+traits_nocorr <- subset(traits, select = -c(code, WFDP_Code, sub_plot, Host_ID, leaf_CN, root_CN, specific_root_area, 
                                             LDMC_leaf, leaf_pct_C, SLA_leaf))
 
 #check correlations again 
@@ -280,12 +268,12 @@ corrplot(cor_matrix2, method = "color", type = "upper", tl.cex = 0.7)
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           
 # much better
 
-# load species column back into traits_nocorr
-traits_nocorr$species <- traits$species
+# load Host_ID column back into traits_nocorr
+traits_nocorr$Host_ID <- traits$Host_ID
  
 ###################################
 # perform PCA on 'traits_nocorr' dataset
-# "traits_nocorr" data has a column for species in the very last position, so need to exclude that 
+# "traits_nocorr" data has a column for Host_ID in the very last position, so need to exclude that 
 
 
 #All Traits
@@ -295,7 +283,7 @@ sd.alltraits = alltraits.pca$sdev
 loadings.alltraits = alltraits.pca$rotation
 trait.names.alltraits = colnames(traits_nocorr[1:11])
 scores.alltraits = as.data.frame(alltraits.pca$x)
-scores.alltraits$species = traits_nocorr$species
+scores.alltraits$Host_ID = traits_nocorr$Host_ID
 summary(alltraits.pca)
 
 # Save loadings for all traits
@@ -305,7 +293,7 @@ write.csv(loadings.alltraits, "./PCA/PCA_loadings_nocorrelatedtraits_tree.csv", 
 write.csv(scores.alltraits, "./PCA/PCA_scores_nocorrelatedtraits_tree.csv")
 
 
-# PCA scores are 'scores.alltraits' with column for species 
+# PCA scores are 'scores.alltraits' with column for Host_ID
 
 loadings.alltraits <- as.data.frame(loadings.alltraits)
 
@@ -316,18 +304,18 @@ pca_var_explained <- pca_var / sum(pca_var) * 100  # Convert to percentage
 
 
 
-PCA_plot <- ggplot(scores.alltraits, aes(x = PC1, y = PC2, color = species)) +
+PCA_plot <- ggplot(scores.alltraits, aes(x = PC1, y = PC2, color = Host_ID)) +
   geom_point(size = 3) +
   geom_segment(data = loadings.alltraits, aes(x = 0, y = 0, xend = PC1 * 10, yend = PC2 * 10),
                arrow = arrow(length = unit(0.2, "cm")), color = "black") + 
   geom_text_repel(data = loadings.alltraits, aes(x = PC1 * 10, y = PC2 * 10, label = rownames(loadings.alltraits)),
                   color = "black", size = 4, max.overlaps = 10) +
   theme_minimal() +
-  scale_color_viridis_d(name = "species", option = "turbo") +  # Viridis colorblind-friendly
+  scale_color_viridis_d(name = "Host_ID", option = "turbo") +  # Viridis colorblind-friendly
   labs(title = "PCA Biplot: Tree Leaf and Root Traits",
        x = paste0("PC1 (", round(pca_var_explained[1], 1), "%)"),
        y = paste0("PC2 (", round(pca_var_explained[2], 1), "%)"), 
-       color = "Species") +
+       color = "Host Species") +
   theme(legend.position = "right")
 
 PCA_plot
@@ -449,6 +437,11 @@ PCA_plot_trees
 
 # Grab PC1 and PC2 for each tree 
 alltrees_PCs <- select(scores.alltrees, PC1, PC2, code, species)
+
+
+
+
+
 
 
 
