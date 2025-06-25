@@ -302,6 +302,9 @@ pca_var <- alltraits.pca$sdev^2  # Eigenvalues (variance of each PC)
 pca_var_explained <- pca_var / sum(pca_var) * 100  # Convert to percentage
 
 
+# set colors for hosts 
+# ABAM        ABGR        ABPR          ALRU         CONU        TABR          THPL        TSHE        
+all_hosts <- c("#0D0887FF", "#5402A3FF", "#8B0AA5FF", "#B93289FF", "#DB5C68FF", "#F48849FF", "#ffe24cFF", "#fffd66")
 
 
 PCA_plot <- ggplot(scores.alltraits, aes(x = PC1, y = PC2, color = Host_ID)) +
@@ -311,7 +314,10 @@ PCA_plot <- ggplot(scores.alltraits, aes(x = PC1, y = PC2, color = Host_ID)) +
   geom_text_repel(data = loadings.alltraits, aes(x = PC1 * 10, y = PC2 * 10, label = rownames(loadings.alltraits)),
                   color = "black", size = 4, max.overlaps = 10) +
   theme_minimal() +
-  scale_color_viridis_d(name = "Host_ID", option = "turbo") +  # Viridis colorblind-friendly
+  scale_colour_manual(values=all_hosts, 
+                      name="Host Species",
+                      breaks=c("ABAM", "ABGR", "ABPR", "ALRU", "CONU", "TABR", "THPL", "TSHE"),
+                      labels=c("ABAM", "ABGR", "ABPR", "ALRU", "CONU", "TABR", "THPL", "TSHE")) +
   labs(title = "PCA Biplot: Tree Leaf and Root Traits",
        x = paste0("PC1 (", round(pca_var_explained[1], 1), "%)"),
        y = paste0("PC2 (", round(pca_var_explained[2], 1), "%)"), 
@@ -378,7 +384,7 @@ top_PC2 <- loadings.alltraits[order(abs(loadings.alltraits$PC2), decreasing = TR
 # Want to do the PCA to get the position of each individual host tree 
 
 # retain tree code and species columns 
-traits2 <- subset(traits, select = -c(leaf_CN, root_CN, specific_root_area, 
+traits2 <- subset(traits, select = -c(code, sub_plot, leaf_CN, root_CN, specific_root_area, 
                                             LDMC_leaf, leaf_pct_C, SLA_leaf))
 
 
@@ -389,8 +395,8 @@ sd.alltrees = alltrees.pca$sdev
 loadings.alltrees = alltrees.pca$rotation
 trait.names.alltrees = colnames(traits2[3:13])
 scores.alltrees = as.data.frame(alltrees.pca$x)
-scores.alltrees$code = traits2$code
-scores.alltrees$species = traits2$species
+scores.alltrees$WFDP_Code = traits2$WFDP_Code
+scores.alltrees$Host_ID = traits2$Host_ID
 summary(alltrees.pca)
 
 # Save loadings for PCA of all individual tree positions 
@@ -400,7 +406,7 @@ write.csv(loadings.alltrees, "./PCA/PCA_loadings_tree_positions.csv", row.names 
 write.csv(scores.alltrees, "./PCA/PCA_scores_tree_positions.csv")
 
 
-# PCA scores are 'scores.alltrees' with column for species 
+# PCA scores are 'scores.alltrees' with column for Host Species
 
 loadings.alltrees <- as.data.frame(loadings.alltrees)
 
@@ -409,21 +415,26 @@ pca_var <- alltrees.pca$sdev^2  # Eigenvalues (variance of each PC)
 pca_var_explained <- pca_var / sum(pca_var) * 100  # Convert to percentage
 
 # Visualize
-PCA_plot_trees <- ggplot(scores.alltrees, aes(x = PC1, y = PC2, color = species)) +
+PCA_plot_trees <- ggplot(scores.alltrees, aes(x = PC1, y = PC2, color = Host_ID)) +
   geom_point(size = 3) +
   geom_segment(data = loadings.alltrees, aes(x = 0, y = 0, xend = PC1 * 10, yend = PC2 * 10),
                arrow = arrow(length = unit(0.2, "cm")), color = "black") + 
   geom_text_repel(data = loadings.alltrees, aes(x = PC1 * 10, y = PC2 * 10, label = rownames(loadings.alltrees)),
                   color = "black", size = 4, max.overlaps = 10) +
   theme_minimal() +
-  scale_color_viridis_d(name = "Species", option = "turbo") +  # Viridis colorblind-friendly
+  scale_colour_manual(values=all_hosts, 
+                      name="Host Species",
+                      breaks=c("ABAM", "ABGR", "ABPR", "ALRU", "CONU", "TABR", "THPL", "TSHE"),
+                      labels=c("ABAM", "ABGR", "ABPR", "ALRU", "CONU", "TABR", "THPL", "TSHE")) +
   labs(title = "PCA Biplot: Tree Leaf and Root Traits",
        x = paste0("PC1 (", round(pca_var_explained[1], 1), "%)"),
        y = paste0("PC2 (", round(pca_var_explained[2], 1), "%)"), 
-       color = "Species") +
+       color = "Host Species") +
   theme(legend.position = "right")
 
 PCA_plot_trees
+
+# The plot is identical, but the loadings are what we want 
 
 
 ## Broken stick will be the same, so don't need to do anything with that 
@@ -436,14 +447,103 @@ PCA_plot_trees
 # related to the traits of the host tree 
 
 # Grab PC1 and PC2 for each tree 
-alltrees_PCs <- select(scores.alltrees, PC1, PC2, code, species)
+alltrees_PCs <- select(scores.alltrees, PC1, PC2, WFDP_Code, Host_ID)
 
 
+# Read back in envrionmental data for the trees 
+
+x # Right now this is just slope, aspect, and elevation, but will be able to pull in 
+ # krieged data when it exists 
+env <- read.csv("~/Dropbox/WSU/WFDP_Chapter_3_Project/Enviro_Data/WFDP_enviro_data_all.csv")
+
+# subset to data of interest 
+
+env <- select(env, sub_plot, WFDP_Code, slope, aspect, elevation_m)
+
+tree_PCs_env <- merge(env, alltrees_PCs, by = "WFDP_Code")
 
 
+#### Assess relationships between PC1 and PC2 values and slope, aspect, and elevation 
+
+### PC1
+
+## Slope
+slope <- ggplot(tree_PCs_env, aes(x = slope, y = PC1)) +
+  geom_point(aes(color = Host_ID)) +
+  geom_smooth(method = "lm") +
+  theme_minimal()
+slope
+
+# test relationships 
+lm_slope <- lm(PC1 ~ slope, data = tree_PCs_env)
+summary(lm_slope) # NOT SIGNIFICANT
 
 
+## Aspect
+aspect <- ggplot(tree_PCs_env, aes(x = aspect, y = PC1)) +
+  geom_point(aes(color = Host_ID)) +
+  geom_smooth(method = "lm") +
+  theme_minimal()
+aspect
 
+# test relationships 
+lm_aspect <- lm(PC1 ~ aspect, data = tree_PCs_env)
+summary(lm_aspect) # NOT SIGNIFICANT
+
+
+## Elevation
+elev <- ggplot(tree_PCs_env, aes(x = elevation_m, y = PC1)) +
+  geom_point(aes(color = Host_ID)) +
+  geom_smooth(method = "lm") +
+  theme_minimal()
+elev
+
+# test relationships 
+lm_elev <- lm(PC1 ~ elevation_m, data = tree_PCs_env)
+summary(lm_elev) # NOT SIGNIFICANT
+
+
+### PC2
+
+## Slope
+slope2 <- ggplot(tree_PCs_env, aes(x = slope, y = PC2)) +
+  geom_point(aes(color = Host_ID)) +
+  geom_smooth(method = "lm") +
+  theme_minimal()
+slope2
+
+# test relationships 
+lm_slope2 <- lm(PC2 ~ slope, data = tree_PCs_env)
+summary(lm_slope2) # SIGNIFICANT
+
+# Adjusted R-squared:  0.05096, p-value: 0.04574
+
+
+## Aspect
+aspect2 <- ggplot(tree_PCs_env, aes(x = aspect, y = PC2)) +
+  geom_point(aes(color = Host_ID)) +
+  geom_smooth(method = "lm") +
+  theme_minimal()
+aspect2
+
+# test relationships 
+lm_aspect2 <- lm(PC1 ~ aspect, data = tree_PCs_env)
+summary(lm_aspect2) # NOT SIGNIFICANT
+
+
+## Elevation
+elev2 <- ggplot(tree_PCs_env, aes(x = elevation_m, y = PC2)) +
+  geom_point(aes(color = Host_ID)) +
+  geom_smooth(method = "lm") +
+  theme_minimal()
+elev2
+
+# test relationships 
+lm_elev2 <- lm(PC2 ~ elevation_m, data = tree_PCs_env)
+summary(lm_elev2) # NOT SIGNIFICANT
+
+
+## RESULT: Only significant relationship was between slope and PC2 values 
 
 #################################################################################
 
