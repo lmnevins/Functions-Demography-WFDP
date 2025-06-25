@@ -113,7 +113,8 @@ sample_count <- rowSums(asv)
 
 sample_count <- as.data.frame(sample_count) #all trees still have some ASV's
 
-# some of these look pretty tiny but this can be revisited 
+# some of these look pretty tiny, can be revisited later 
+
 
 asv_count <- colSums(asv)
 
@@ -407,6 +408,72 @@ permanova.host
 # Not significant 
 
 
+#####################################
+x # Come back to this when I have the kriged envrionmental data for each host tree 
+
+# Take distance to centroid values and regress with key environmental variables to assess if there are 
+# relationships with environmental variation across the sites
+
+# need to make dataset that has distance to centroid and the environmental variables 
+
+# Have distance to centroid and environmental data for each individual tree 
+distances_EM <- tibble::rownames_to_column(distances_EM, "Sample_ID")
+
+# use environmental data that was pulled in earlier 
+view(sample_data)
+
+# pick some specific environmental variables of interest to compare 
+enviro <- select(sample_data, Sample_ID, slope, aspect, elevation_m)
+
+# combine with the distance to centroid summary table
+centroid_enviro_EM <- merge(distances_EM, enviro, by = "Sample_ID")
+
+### Right now just looking at this for individual tree info of slope, aspect, and elevation 
+# Once I have the kriged data I can look at this across many more environmental variables 
+
+
+### Testing these using the individual tree data
+
+## Slope
+slope <- ggplot(centroid_enviro_EM, aes(x = slope, y = DistanceToCentroid)) +
+  geom_point(aes(color = Host_ID)) +
+  geom_smooth(method = "lm") +
+  theme_minimal()
+slope
+
+# test relationships 
+lm_slope <- lm(DistanceToCentroid ~ slope, data = centroid_enviro_EM)
+summary(lm_slope) # NOT SIGNIFICANT
+
+
+## Aspect
+aspect <- ggplot(centroid_enviro_EM, aes(x = aspect, y = DistanceToCentroid)) +
+  geom_point() +
+  geom_smooth(method = "lm") +
+  theme_minimal()
+aspect
+
+# test relationships 
+lm_aspect <- lm(DistanceToCentroid ~ aspect, data = centroid_enviro_EM)
+summary(lm_aspect) # NOT SIGNIFICANT
+
+
+## Elevation
+elev <- ggplot(centroid_enviro_EM, aes(x = elevation_m, y = DistanceToCentroid)) +
+  geom_point() +
+  geom_smooth(method = "lm") +
+  theme_minimal()
+elev
+
+# test relationships 
+lm_elev <- lm(DistanceToCentroid ~ elevation_m, data = centroid_enviro_EM)
+summary(lm_elev) # NOT SIGNIFICANT
+
+
+### RESULT: No significant relationship between distance to centroid and 
+# slope, aspect, or elevation for individual trees 
+
+
 ########################################################################
 
 # I want to look at the traits for each tree community and compare the relative portions of traits that 
@@ -486,22 +553,101 @@ exploration_traits <- trait_sums_long %>%
 hydro_traits <- trait_sums_long %>%
   filter(str_starts(Trait, "hydro"))
 
+# Clean up the trait names 
+exploration_traits <- exploration_traits %>%
+  mutate(Trait_clean = Trait %>%
+           str_remove("^ET_") %>%                # remove prefix
+           str_replace_all("_", "-") %>%         # underscores → dashes
+           str_to_title()                        # capitalize each word
+  )
+
+hydro_traits <- hydro_traits %>%
+  mutate(Trait_clean = Trait %>%
+           str_to_title()                        # capitalize each word
+  )
+
+# Clean up label names 
+exploration_traits <- exploration_traits %>%
+  mutate(Tree = Trait_Name %>%
+           str_remove("^T-")                # remove prefix
+  )
+
+
+hydro_traits <- hydro_traits %>%
+  mutate(Tree = Trait_Name %>%
+           str_remove("^T-")                # remove prefix
+  )
+
+
+
+# Set exploration type order to reflect range of short to long distance investment 
+exploration_order <- c("Contact", "Contact-Short", "Short", "Contact-Medium", "Contact-Medium-Smooth",
+                       "Contact-Medium-Fringe", "Contact-Long-Smooth", "Medium-Smooth", "Medium-Fringe", 
+                       "Medium-Mat", "Medium-Long", "Medium-Long-Smooth", "Medium-Long-Fringe", "Long"
+)
+
+# apply order to the trait column 
+exploration_traits <- exploration_traits %>%
+  mutate(Trait_clean = factor(Trait_clean, levels = exploration_order))
+
+# get viridis colors for the traits 
+library(viridis)
+
+viridis_colors <- viridis(14, option = "D", direction = -1)
+print(viridis_colors)
+
 
 # plot per tree 
-ET_tree_plot <- ggplot(exploration_traits, aes(x = Trait, y = CLR_Sum, fill = Trait)) +
+ET_tree_plot <- ggplot(exploration_traits, aes(x = Tree, y = CLR_Sum, fill = Trait_clean)) +
   geom_bar(stat = "identity") +
-  facet_wrap(~ Sample_ID, scales = "free_y") +
   theme_minimal() +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1),
-        legend.position = "none") +
-  labs(title = "Exploration Type Profile per Tree",
-       y = "CLR-weighted Trait Abundance")
+  labs(
+    title = "CLR-Weighted Exploration Type Trait Composition per Tree",
+    x = "",
+    y = "Relative Trait Abundance",
+    fill = "Trait"
+  ) +
+  scale_fill_manual(
+    values = setNames(viridis(14, option = "D", direction = -1), exploration_order)
+  ) +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1)
+  )
 
 ET_tree_plot
 
+# set hydro palette
+
+               # hydrophilic   hydrophobic
+hydro_colors <- c("#4682B4", "#FF6347")
 
 
 
+# plot per tree 
+hydro_tree_plot <- ggplot(hydro_traits, aes(x = Tree, y = CLR_Sum, fill = Trait_clean)) +
+  geom_bar(stat = "identity") +
+  theme_minimal() +
+  labs(
+    title = "CLR-Weighted Hydrophilic Trait Composition per Tree",
+    x = "",
+    y = "Relative Trait Abundance",
+    fill = "Trait"
+  ) +
+  scale_fill_manual(values=hydro_colors, 
+                    name="Trait",
+                    breaks=c("Hydrophilic", "Hydrophobic"),
+                    labels=c("Hydrophilic", "Hydrophobic")) +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1)
+  )
+
+hydro_tree_plot
+
+
+# INTERPRETATION:
+
+# These plots are showing the clr-transformed abundance weighted trait values, so not raw abundance 
+# A positive value tells us that that trait is relatively more abundant than most of the other OTU's
+# in the community, while a negative value tells us that the trait is relatively less abundant, 
+# because the OTUs that have that trait are relatively less abundant than other OTU's. 
 
 
 
@@ -513,44 +659,6 @@ ET_tree_plot
 ##################
 
 ########## PAUSE
-
-x # Come back to this when I have the kriged envrionmental data for each host tree 
-
-# Take distance to centroid values and regress with key environmental variables to assess if there are 
-# relationships with environmental variation across the sites
-
-# need to make dataset that has distance to centroid and the environmental variables 
-
-# Have distance to centroid and environmental data for each individual tree 
-distances_EM <- tibble::rownames_to_column(distances_EM, "Tree")
-
-
-# Pull in environmental data that has been trimmed to remove colinear variables 
-EM_env <- read.csv("./FINAL/EM_enviro_no_colinear.csv")
-
-EM_env$Tree <- EM_env$X
-
-# pick some specific environmental variables of interest to compare 
-EM_env2 <- select(EM_env, Tree, elev, MAP, MAT, pct_N, Sand, ph, EC, avg_July_SPEI, count_mod_dry, 
-                  count_sev_dry, count_ext_dry, apr1_SWE)
-
-# combine with the distance to centroid summary table
-centroid_enviro_EM <- merge(distances_EM, EM_env2, by = "Tree")
-
-
-### Testing these using the individual tree data
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
