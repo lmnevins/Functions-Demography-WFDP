@@ -7,12 +7,12 @@
 #                     dplyr v 1.1.4
 #                     tibble v 3.2.1
 #                     fundiversity v 1.1.1
-#                     vegan v 2.6.6.1
+#                     vegan v 2.6.10
 #                     cluster v 2.1.8
 #                     FD v 1.0.12.3
-#                     ade4 v 1.7.22
+#                     ade4 v 1.7.23
 #                     phyloseq v 1.48.0
-#                     ape v 5.8
+#                     ape v 5.8.1
 #                     agricolae v 1.3.7
 #                     rstatix v 0.7.2
 #                     ggpubr v 0.6.0
@@ -80,6 +80,7 @@ WFDP_otu_sub <- data.frame(WFDP_otu_sub[,-1], row.names=WFDP_otu_sub[,1])
 #convert to phyloseq compatible object 
 WFDP_otu_sub <- phyloseq::otu_table(as.matrix(WFDP_otu_sub), taxa_are_rows = F)
 
+
 #####
 #preparation of the tax_table from the full WFDP phyloseq object
 WFDP_tax <- tax_table(WFDP)
@@ -100,7 +101,7 @@ env_WFDP <- read.csv("~/Dropbox/WSU/WFDP_Chapter_3_Project/Enviro_data/WFDP_envi
 ps_WFDP_final <- phyloseq(otu_table(WFDP_otu_sub), tax_table(WFDP_tax), sample_data(env_WFDP))
 
 
-#inspect
+#### Trim to reflect just the community in WFDP
 # number of taxa - 2,542
 ntaxa(ps_WFDP_final)
 
@@ -115,7 +116,6 @@ sample_count <- as.data.frame(sample_count) #all trees still have some ASV's
 
 # some of these look pretty tiny, can be revisited later 
 
-
 asv_count <- colSums(asv)
 
 asv_count <- as.data.frame(asv_count) #a lot of ASV's no longer present in the samples 
@@ -126,56 +126,6 @@ ps_WFDP_final <- subset_taxa(ps_WFDP_final, taxa_sums(ps_WFDP_final) > 0)
 # number of taxa - now 404
 ntaxa(ps_WFDP_final)
 
-
-########
-#start names file with the original OTUs 
-OTU <- phyloseq::taxa_names(ps_WFDP_final)
-OTU_long <- as.data.frame(OTU)
-
-#change OTU names to something nicer to work with
-taxa_names(ps_WFDP_final)
-n_seqs <- seq(ntaxa(ps_WFDP_final))
-len_n_seqs <- nchar(max(n_seqs))
-taxa_names(ps_WFDP_final) <- paste("OTU", formatC(n_seqs, 
-                                                  width = len_n_seqs, 
-                                                  flag = "0"), sep = "_")
-taxa_names(ps_WFDP_final)
-
-# get shortened names 
-OTU2 <- taxa_names(ps_WFDP_final) 
-OTU_short <- as.data.frame(OTU2)
-
-# join two dataframes
-all_names <- cbind(OTU_long, OTU_short)
-
-
-#### 
-# Pursuing a transformation because sequence data are inherently compositional, but standard rarefaction 
-# is not repeatable and leads to the exclusion of a huge fraction of your data 
-
-# trying a centered log-ratio transformation per https://www.frontiersin.org/journals/microbiology/articles/10.3389/fmicb.2017.02224/full
-
-# Also: Van den Boogaart, K. G., and Tolosana-Delgado, R. (2013). Analyzing Compositional Data with R, 
-# London, UK: Springer.
-
-# load the ask table of raw reads into the clr transformation in the compositions package 
-
-asv <- otu_table(ps_WFDP_final) %>% as("matrix") %>% as.data.frame()
-
-# check again
-asv_count <- colSums(asv) %>% as.data.frame()
-
-clr_WFDP_EM <- clr(asv)
-
-clr_WFDP_EM <- as.data.frame(clr_WFDP_EM)
-
-# load the clr data back into a phyloseq object 
-ps_WFDP_final <- phyloseq(tax_table(tax_table(ps_WFDP_final)),
-                      otu_table(otu_table(clr_WFDP_EM, taxa_are_rows=FALSE)),
-                      sample_data(sample_data(ps_WFDP_final)))
-
-## Preparing the species x trait and species x site matrices 
-###############
 
 # Get taxon table for EM community in WFDP
 WFDP_tax <- tax_table(ps_WFDP_final)
@@ -216,37 +166,129 @@ matrix <- merge(WFDP_tax, exp, by = "Genus", all.y = TRUE)
 matrix <- na.omit(matrix)
 
 #get column name set for name merging down below
-matrix$OTU2 <- matrix$X
+matrix$OTU <- matrix$X
 
 # the number is correct - 358 OTUs with genus and functional assignments 
 
+
+#start names file with the original OTUs 
+OTU <- phyloseq::taxa_names(ps_WFDP_final)
+OTU_long <- as.data.frame(OTU)
+
+#change OTU names to something nicer to work with
+taxa_names(ps_WFDP_final)
+n_seqs <- seq(ntaxa(ps_WFDP_final))
+len_n_seqs <- nchar(max(n_seqs))
+taxa_names(ps_WFDP_final) <- paste("OTU", formatC(n_seqs, 
+                                                  width = len_n_seqs, 
+                                                  flag = "0"), sep = "_")
+taxa_names(ps_WFDP_final)
+
+# get shortened names 
+OTU2 <- taxa_names(ps_WFDP_final) 
+OTU_short <- as.data.frame(OTU2)
+
+# join two dataframes
+all_names <- cbind(OTU_long, OTU_short)
+
+
+#merge taxa_names with the traits file to get the updated OTU names 
+matrix <- merge(matrix, all_names, by = "OTU")
+
+# reformat a tiny bit just to get OTU's as the species in rownames, and my traits only 
+traits_WFDP_EM <- matrix %>% select(OTU2, hydrophilic, hydrophobic, ET_contact, ET_contact_short, ET_short, ET_contact_medium,
+                                    ET_contact_medium_fringe, ET_contact_medium_smooth, ET_medium_smooth, 
+                                    ET_medium_fringe, ET_medium_mat, ET_medium_long, ET_medium_long_smooth,
+                                    ET_medium_long_fringe, ET_contact_long_smooth, ET_long) %>% column_to_rownames(var = "OTU2") 
+
+#OTUs are now the row names and there are columns for the binary coding of each trait level 
+
+
 # We want these to be the ones that are contained within the final phyloseq object 
 
-taxa_to_keep <- matrix$OTU
+taxa_to_keep <- matrix$OTU2
 
 # Prune taxa from the phyloseq object that are NOT in the taxa_to_keep list 
 ps_WFDP_final <- prune_taxa(taxa_to_keep, ps_WFDP_final)
 
 
+#SAVE THE FINAL RAW DATA PHYLOSEQ OBJECT 
+# For the taxa that have functional assignments in the community 
+saveRDS(ps_WFDP_final, file = "~/Dropbox/WSU/WFDP_Chapter_3_Project/Fungal_Communities/WFDP_phyloseq_funcs_final.RDS")
+
+
+
+# Getting to know your phyloseq data ####
+
+# number of taxa - 358
+ntaxa(ps_WFDP_final)
+
+# number of samples - 60
+nsamples(ps_WFDP_final)
+
+# sample names
+sample_names(ps_WFDP_final)
+rank_names(ps_WFDP_final)
+# taxa names
+taxa_names(ps_WFDP_final)
+
+# ASV table
+otu_table(ps_WFDP_final) %>% View()
+
+# how many sequences observed in each sample?
+seq_counts <- otu_table(ps_WFDP_final) %>% rowSums() %>% as.data.frame()
+# No trees with no sequences 
+
+
+# how many times was each taxon observed across the samples?
+otu_table <- otu_table(ps_WFDP_final) %>% colSums()
+
+
+# how many different samples was each taxon found in?
+asv <- otu_table(ps_WFDP_final) %>% as("matrix") %>% as.data.frame() # convert to matrix before you can convert to data frame
+
+#inspect tax_table 
+WFDP_tax_table <- as.data.frame(tax_table(ps_WFDP_final))
+
+#count number of classifications in each column to determine coverage to taxonomic levels 
+
+colSums(!is.na(WFDP_tax_table))
+
+#  Kingdom  Phylum    Class    Order   Family   Genus    Species 
+#  358       358       358     358     358      358      187 
+#  100%     100%      100%     100%    100%     100%     52.2% 
+
+
+
+#### 
+# Pursuing a transformation because sequence data are inherently compositional, but standard rarefaction 
+# is not repeatable and leads to the exclusion of a huge fraction of your data 
+
+# trying a centered log-ratio transformation per https://www.frontiersin.org/journals/microbiology/articles/10.3389/fmicb.2017.02224/full
+
+# Also: Van den Boogaart, K. G., and Tolosana-Delgado, R. (2013). Analyzing Compositional Data with R, 
+# London, UK: Springer.
+
+## Using robust clr transformation, which only transforms the non-zero values in the dataset, and is thus 
+# less affected by high zero counts than standard clr is 
+
+asv <- otu_table(ps_WFDP_final) %>% as("matrix") %>% as.data.frame()
+
+clr_WFDP_EM <- decostand(asv, method = "rclr")
+
+clr_WFDP_EM <- as.data.frame(clr_WFDP_EM)
+
+
+# load the clr data back into a phyloseq object 
+ps_WFDP_final <- phyloseq(tax_table(tax_table(ps_WFDP_final)),
+                      otu_table(otu_table(clr_WFDP_EM, taxa_are_rows=FALSE)),
+                      sample_data(sample_data(ps_WFDP_final)))
+
+
 #SAVE THE FINAL PHYLOSEQ OBJECT 
-saveRDS(ps_WFDP_final, file = "~/Dropbox/WSU/WFDP_Chapter_3_Project/Fungal_Communities/WFDP_phyloseq_final.RDS")
+saveRDS(ps_WFDP_final, file = "~/Dropbox/WSU/WFDP_Chapter_3_Project/Fungal_Communities/WFDP_phyloseq_clr_final.RDS")
 
 ## This now only contains the fungal taxa that we have functional information for 
-
-
-### Cleaning a bit more 
-
-#merge taxa_names with the traits file to get the updated OTU names 
-matrix <- merge(matrix, all_names, by = "OTU2")
-
-# reformat a tiny bit just to get OTU's as the species in rownames, and my traits only 
-traits_WFDP_EM <- matrix %>% select(OTU2, hydrophilic, hydrophobic, ET_contact, ET_contact_short, ET_short, ET_contact_medium,
-                               ET_contact_medium_fringe, ET_contact_medium_smooth, ET_medium_smooth, 
-                               ET_medium_fringe, ET_medium_mat, ET_medium_long, ET_medium_long_smooth,
-                               ET_medium_long_fringe, ET_contact_long_smooth, ET_long) %>% column_to_rownames(var = "OTU2") 
-
-#OTUs are now the row names and there are columns for the binary coding of each trait level 
-
 
 # grab final dataframe of clr transformed OTUs that have trait values 
 clr_WFDP_EM <- otu_table(ps_WFDP_final) %>% as("matrix") %>% as.data.frame()
@@ -276,18 +318,18 @@ save(aitchison_WFDP_EM, file="~/Dropbox/WSU/WFDP_Chapter_3_Project/Fungal_Commun
 
 # get a few site-level columns to load back into the clr dataframe 
 
-sample_data <-  data.frame(sample_data(ps_WFDP_final))
+sample_data <-  data.frame(sample_data(ps_WFDP_final)) %>% rownames_to_column("Sample_ID")
 
-sites <- select(sample_data, Sample_ID, Host_ID)
+sites <- select(sample_data, Sample_ID, Host_ID) %>% column_to_rownames("Sample_ID")
 
 clr_sites_EM <- merge(sites, clr_WFDP_EM, by = 'row.names')
 
 #PCA of differences in composition for host taxa  
-pca_clr_EM = prcomp(clr_sites_EM[4:361], center = T, scale = F)
+pca_clr_EM = prcomp(clr_sites_EM[3:360], center = T, scale = F)
 
 sd.pca_clr_EM = pca_clr_EM$sdev
 loadings.pca_clr_EM = pca_clr_EM$rotation
-names.pca_clr_EM = colnames(clr_sites_EM[4:361])
+names.pca_clr_EM = colnames(clr_sites_EM[3:360])
 scores.pca_clr_EM = as.data.frame(pca_clr_EM$x)
 scores.pca_clr_EM$Host_ID = clr_sites_EM$Host_ID
 summary(pca_clr_EM)
@@ -304,8 +346,8 @@ pca_var_explained <- pca_var / sum(pca_var) * 100  # Convert to percentage
 
 
 #set colors for hosts
-                  # ABAM        ABGR        ABPR          ALRU         CONU        TABR          THPL        TSHE        
-all_hosts <- c("#0D0887FF", "#5402A3FF", "#8B0AA5FF", "#B93289FF", "#DB5C68FF", "#F48849FF", "#ffe24cFF", "#fffd66")
+                  # ABAM        ABGR        ALRU         CONU        TABR          THPL        TSHE        
+all_hosts <- c("#0D0887FF", "#5402A3FF", "#B93289FF", "#DB5C68FF", "#F48849FF", "#ffe24cFF", "#fffd66")
 
 
 # Plot the Results by host
@@ -315,8 +357,8 @@ PCA_plot_host <- ggplot(scores.pca_clr_EM, aes(x = PC1, y = PC2, color = Host_ID
   theme_minimal() +
   scale_colour_manual(values=all_hosts, 
                       name="Host_ID",
-                      breaks=c("ABAM", "ABGR", "ABPR", "ALRU", "CONU", "TABR", "THPL", "TSHE"),
-                      labels=c("ABAM", "ABGR", "ABPR", "ALRU", "CONU", "TABR", "THPL", "TSHE")) +
+                      breaks=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE"),
+                      labels=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE")) +
   labs(title = "PCA Biplot: Community Variation Across Host Tree Taxa",
        x = paste0("PC1 (", round(pca_var_explained[1], 1), "%)"),
        y = paste0("PC2 (", round(pca_var_explained[2], 1), "%)"), 
@@ -342,7 +384,7 @@ betadisper.host <- vegan::betadisper(aitchison_WFDP_EM, sample_data$Host_ID, typ
 betadisper.host
 
 permutest(betadisper.host)
-#groups dispersions are not different p = 0.149
+#groups dispersions are not different p = 0.103
 
 #if the dispersion is different between groups, then examine
 scores(betadisper.host, display = c("sites", "centroids"),
@@ -351,7 +393,7 @@ scores(betadisper.host, display = c("sites", "centroids"),
 
 #visualize 
 plot(betadisper.host, axes = c(1,2), ellipse = FALSE, segments = FALSE, lty = "solid", label = TRUE, 
-     label.cex = 0.5, col = c("#0D0887FF", "#5402A3FF", "#8B0AA5FF", "#B93289FF", "#DB5C68FF", "#F48849FF", "#ffe24cFF", "#fffd66"))
+     label.cex = 0.5, col = c("#0D0887FF", "#5402A3FF", "#B93289FF", "#DB5C68FF", "#F48849FF", "#ffe24cFF", "#fffd66"))
 
 
 
@@ -379,8 +421,8 @@ centroid_plot_EM <- ggplot(distances_EM, aes(x = Host_ID, y = DistanceToCentroid
        y = "Distance to Centroid") +
   scale_fill_manual(values=all_hosts, 
                       name="Host_ID",
-                      breaks=c("ABAM", "ABGR", "ABPR", "ALRU", "CONU", "TABR", "THPL", "TSHE"),
-                      labels=c("ABAM", "ABGR", "ABPR", "ALRU", "CONU", "TABR", "THPL", "TSHE")) +
+                      breaks=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE"),
+                      labels=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE")) +
   theme(legend.position = "right")
 
 centroid_plot_EM
@@ -400,10 +442,10 @@ permanova.host <- vegan::adonis2(aitchison_WFDP_EM ~ Host_ID, data = sample_data
 permanova.host
 
 # vegan::adonis2(formula = aitchison_WFDP_EM ~ Host_ID, data = sample_data, permutations = 999, method = "euclidean")
-#           Df SumOfSqs      R2      F Pr(>F)
-# Model     6    357.9 0.09327 0.9087  0.934
-# Residual 53   3479.2 0.90673              
-# Total    59   3837.1 1.00000 
+#         Df SumOfSqs      R2      F Pr(>F)
+# Model     6    356.5 0.09379 0.9142  0.911
+# Residual 53   3444.4 0.90621              
+# Total    59   3800.8 1.00000  
 
 # Not significant 
 
@@ -479,6 +521,7 @@ summary(lm_elev) # NOT SIGNIFICANT
 # I want to look at the traits for each tree community and compare the relative portions of traits that 
 # are present using the clr values. 
 
+
 # check structure 
 str(clr_WFDP_EM)
 str(traits_WFDP_EM)
@@ -492,7 +535,6 @@ tree_matrix_EM <- as.data.frame(clr_WFDP_EM)
 tree_matrix_EM[] <- lapply(tree_matrix_EM, as.numeric)  
 tree_matrix_EM <- as.matrix(tree_matrix_EM)
 rownames(tree_matrix_EM) <- tree_ids 
-
 
 # Keep rownames
 otu_ids <- rownames(traits_WFDP_EM)
@@ -509,6 +551,14 @@ sum(is.na(traits_matrix_EM))  # None
 # Make sure OTUs match between traits and trees
 # Find shared OTUs between the two datasets 
 shared_otus <- intersect(colnames(tree_matrix_EM), rownames(traits_matrix_EM))
+
+# all are shared 
+
+# set the OTU's to be in the same order 
+otu_order <- colnames(tree_matrix_EM)
+
+# reorder the trait matrix rows to match the tree matrix columns
+traits_matrix_EM <- traits_matrix_EM[otu_order, ]
 
 # double check alignment 
 all(colnames(tree_matrix_EM) == rownames(traits_matrix_EM)) #TRUE
@@ -563,21 +613,22 @@ exploration_traits <- exploration_traits %>%
 
 hydro_traits <- hydro_traits %>%
   mutate(Trait_clean = Trait %>%
-           str_to_title()                        # capitalize each word
+           str_to_title()                       
   )
 
 # Clean up label names 
 exploration_traits <- exploration_traits %>%
-  mutate(Tree = Trait_Name %>%
-           str_remove("^T-")                # remove prefix
+  mutate(Tree = Compatible_Name %>%
+           str_remove("^W.")                
   )
 
 
 hydro_traits <- hydro_traits %>%
-  mutate(Tree = Trait_Name %>%
-           str_remove("^T-")                # remove prefix
+  mutate(Tree = Compatible_Name %>%
+           str_remove("^W.")                
   )
 
+# This creates a 'Tree' label which aligns with the numbering system for the fungal communities 
 
 
 # Set exploration type order to reflect range of short to long distance investment 
@@ -601,25 +652,97 @@ print(viridis_colors)
 ET_tree_plot <- ggplot(exploration_traits, aes(x = Tree, y = CLR_Sum, fill = Trait_clean)) +
   geom_bar(stat = "identity") +
   theme_minimal() +
-  labs(
-    title = "CLR-Weighted Exploration Type Trait Composition per Tree",
-    x = "",
-    y = "Relative Trait Abundance",
-    fill = "Trait"
+  labs(x = "",
+    y = "Relative Exploration Type Abundance",
+    fill = "Exploration Type"
   ) +
   scale_fill_manual(
     values = setNames(viridis(14, option = "D", direction = -1), exploration_order)
   ) +
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1)
-  )
+  ) +
+  theme(legend.title = element_text(colour="black", size=12)) +
+  theme(legend.text = element_text(colour="black", size = 12)) +
+  theme(axis.text.y = element_text(colour="black", size = 12)) +
+  theme(axis.title = element_text(colour="black", size = 12))
 
 ET_tree_plot
 
-# set hydro palette
 
+
+## Fill in some trees that have no bars 
+# Get list of all trees and traits
+all_trees <- unique(exploration_traits$Tree)
+all_traits <- unique(exploration_traits$Trait_clean)
+
+# Expand to all Tree × Trait combinations and fill missing with 0
+# For positive trait abundance 
+exploration_traits_full <- exploration_traits %>%
+  select(Tree, Trait_clean, CLR_Sum) %>%
+  complete(Tree = all_trees, Trait_clean = all_traits, fill = list(CLR_Sum = 0))
+
+# Add a couple other data columns for plotting later 
+
+# Make a 'Tree' column in sample_data
+sample_data <- sample_data %>%
+  mutate(Tree = Compatible_Name %>%
+           str_remove("^W.")
+  )
+
+# Grab Host_ID from sample_data
+hosts <- select(sample_data, Tree, Host_ID)
+
+# merge hosts to data 
+exploration_traits_full <- merge(exploration_traits_full, hosts, by = "Tree")
+
+
+## Here these can diverge to consider the traits that are relatively more and less abundant in the tree 
+# communities separately 
+
+# Split positive and negative and scale separately 
+traits_pos <- exploration_traits_full %>%
+  filter(CLR_Sum > 0) %>%
+  group_by(Tree) %>%
+  mutate(CLR_Sum_scaled = CLR_Sum / sum(CLR_Sum)) %>%
+  ungroup()
+
+traits_neg <- exploration_traits_full %>%
+  filter(CLR_Sum < 0) %>%
+  group_by(Tree) %>%
+  mutate(CLR_Sum_scaled = CLR_Sum / sum(abs(CLR_Sum))) %>%
+  ungroup() %>%
+  mutate(CLR_Sum_scaled = -abs(CLR_Sum_scaled))  # ensure values are negative
+
+# Merge for plotting 
+
+# Combine
+traits_diverging <- bind_rows(traits_pos, traits_neg)
+
+
+# Diverging bar plot for trait representation in individual trees 
+
+ET_diverging_WFDP <- ggplot(traits_diverging, aes(x = Tree, y = CLR_Sum_scaled, fill = Trait_clean)) +
+  geom_bar(stat = "identity") +
+  scale_fill_manual(
+    values = setNames(viridis(14, option = "D", direction = -1), exploration_order)) +
+  theme_minimal(base_size = 12) +
+  labs(
+    x = "Tree",
+    y = "Exploration Type Abundance",
+    fill = "Exploration Type") +
+  geom_hline(yintercept = 0, color = "black", linewidth = 2) +
+  theme(legend.title = element_text(colour="black", size=14, face = "bold")) +
+  theme(legend.text = element_text(colour="black", size = 12)) +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, size = 11)) +
+  theme(axis.text.y = element_text(colour="black", size = 12)) +
+  theme(axis.title = element_text(colour="black", size = 14))
+
+ET_diverging_WFDP
+
+
+# set hydro palette
                # hydrophilic   hydrophobic
 hydro_colors <- c("#4682B4", "#FF6347")
-
 
 
 # plot per tree 
@@ -630,8 +753,7 @@ hydro_tree_plot <- ggplot(hydro_traits, aes(x = Tree, y = CLR_Sum, fill = Trait_
     title = "CLR-Weighted Hydrophilic Trait Composition per Tree",
     x = "",
     y = "Relative Trait Abundance",
-    fill = "Trait"
-  ) +
+    fill = "Trait") +
   scale_fill_manual(values=hydro_colors, 
                     name="Trait",
                     breaks=c("Hydrophilic", "Hydrophobic"),
@@ -642,16 +764,172 @@ hydro_tree_plot <- ggplot(hydro_traits, aes(x = Tree, y = CLR_Sum, fill = Trait_
 hydro_tree_plot
 
 
-# INTERPRETATION:
 
-# These plots are showing the clr-transformed abundance weighted trait values, so not raw abundance 
-# A positive value tells us that that trait is relatively more abundant than most of the other OTU's
-# in the community, while a negative value tells us that the trait is relatively less abundant, 
-# because the OTUs that have that trait are relatively less abundant than other OTU's. 
+## Fill in some trees that have no bars 
+# Get list of all trees and traits
+all_trees <- unique(hydro_traits$Sample_ID)
+all_traits <- unique(hydro_traits$Trait_clean)
+
+# Expand to all Tree × Trait combinations and fill missing with 0
+# For positive trait abundance 
+hydro_traits_full <- hydro_traits %>%
+  select(Tree, Trait_clean, CLR_Sum) %>%
+  complete(Tree = all_trees, Trait_clean = all_traits, fill = list(CLR_Sum = 0))
+
+# Add a couple other data columns for plotting later 
+# Grab host data 
+hosts <- select(sample_data, Tree, Host_ID)
+
+# merge hosts to data 
+hydro_traits_full <- merge(hydro_traits_full, hosts, by = "Tree")
+
+## Here these can diverge to consider the traits that are relatively more and less abundant in the tree 
+# communities separately 
+
+# Split positive and negative and scale separately 
+hydro_traits_pos <- hydro_traits_full %>%
+  filter(CLR_Sum > 0) %>%
+  group_by(Tree) %>%
+  mutate(CLR_Sum_scaled = CLR_Sum / sum(CLR_Sum)) %>%
+  ungroup()
+
+hydro_traits_neg <- hydro_traits_full %>%
+  filter(CLR_Sum < 0) %>%
+  group_by(Tree) %>%
+  mutate(CLR_Sum_scaled = CLR_Sum / sum(abs(CLR_Sum))) %>%
+  ungroup() %>%
+  mutate(CLR_Sum_scaled = -abs(CLR_Sum_scaled))  # ensure values are negative
+
+# Merge for plotting 
+
+# Combine
+hydro_traits_diverging <- bind_rows(hydro_traits_pos, hydro_traits_neg)
+
+
+# Diverging bar plot for trait representation in individual trees 
+
+hydro_diverging <- ggplot(hydro_traits_diverging, aes(x = Tree, y = CLR_Sum_scaled, fill = Trait_clean)) +
+  geom_bar(stat = "identity") +
+  scale_fill_manual(values=hydro_colors, 
+                    name="Hyphal Hydrophobicity",
+                    breaks=c("Hydrophilic", "Hydrophobic"),
+                    labels=c("Hydrophilic", "Hydrophobic")) +
+  theme_minimal(base_size = 12) +
+  labs(x = "Tree",
+    y = "Hydrophobicity Abundance",
+    fill = "Hydrophobicity") +
+  geom_hline(yintercept = 0, color = "black", linewidth = 2) +
+  theme(legend.title = element_text(colour="black", size=14, face = "bold")) +
+  theme(legend.text = element_text(colour="black", size = 12)) +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, size = 11)) +
+  theme(axis.text.y = element_text(colour="black", size = 12)) +
+  theme(axis.title = element_text(colour="black", size = 14))
+
+hydro_diverging
+
+
+## Here if I want it
 
 
 
+########################################################
 
+# Get weighted taxon abundance in tree communities 
+
+# Get dataframe for plotting 
+tree_abund_df <- as.data.frame(tree_matrix_EM) %>% rownames_to_column(var = "Sample_ID")
+
+
+# Reshape to long format
+tree_abund_long <- tree_abund_df %>%
+  pivot_longer(-Sample_ID, names_to = "OTU", values_to = "CLR_Abund")
+
+
+# Join table of tree environmental data 
+x # Pull in the imputed environmental data when I have it 
+
+tree_abund_full <- tree_abund_long %>%
+  merge(sample_data, by = "Sample_ID")
+
+
+## Merge with taxa data 
+WFDP_tax <- as.data.frame(WFDP_tax_table) %>% rownames_to_column(var = "OTU2")
+
+# Merge with all_names file to get shortened OTU names 
+WFDP_tax_trim <- merge(WFDP_tax, all_names, by = "OTU2")
+
+WFDP_tax_trim <- select(WFDP_tax_trim, Genus, Species, OTU = OTU2)
+
+tree_tax_full <- merge(WFDP_tax_trim, tree_abund_full, by = "OTU")
+
+
+# Clean up taxa names a bit 
+tree_tax_full <- tree_tax_full %>%
+  mutate(Genus = Genus %>%
+           str_replace_all("g__", "")) %>%
+  mutate(Species = Species %>%
+                    str_replace_all("s__", "")
+  )
+
+tree_tax_full$Genus <- as.factor(tree_tax_full$Genus)
+
+
+## Try grouping rare genera into an "other" category, because 41 genera are too many for clear, 
+# descriptive plotting 
+tree_tax_full %>%
+  filter(CLR_Abund > 0) %>%
+  group_by(Genus) %>%
+  summarise(tree_count = n_distinct(Sample_ID)) %>%
+  arrange(desc(tree_count))
+
+
+
+# Find genera to keep that are present for at least 3 host trees 
+genera_to_keep <- tree_tax_full %>%
+  filter(CLR_Abund > 0) %>%               # Consider genus present if CLR > 0
+  group_by(Genus) %>%
+  summarise(tree_count = n_distinct(Sample_ID)) %>%  # Count unique trees
+  filter(tree_count >= 3) %>%                  # Keep genera found in ≥ 3 trees
+  pull(Genus)
+
+tree_tax_subset <- tree_tax_full %>%
+  mutate(Genus = if_else(Genus %in% genera_to_keep, Genus, "Other"))
+
+## Test plotting taxon relative abundance per tree community 
+
+# plot per tree 
+Tax_tree_plot <- ggplot(tree_tax_subset, aes(x = Tree, y = CLR_Abund, fill = Genus)) +
+  geom_bar(stat = "identity") +
+  theme_minimal() +
+  labs(x = "",
+       y = "Relative EM Genus Abundance",
+       fill = "Genus"
+  ) +
+  guides(fill = guide_legend(ncol = 1)) +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1)) +
+  theme(legend.title = element_text(colour="black", size=12)) +
+  theme(legend.text = element_text(colour="black", size = 9)) +
+  theme(axis.text.y = element_text(colour="black", size = 12)) +
+  theme(axis.title = element_text(colour="black", size = 12))
+
+Tax_tree_plot
+
+
+# Get a species summary just to look at 
+
+species_summary <- tree_tax_full %>%
+  group_by(Genus, Species) %>%
+  summarise(
+    mean_CLR = mean(CLR_Abund),
+    max_CLR = max(CLR_Abund),
+    .groups = "drop"
+  )
+
+
+##########
+# Can come back to this and take the same diverging approach for taxon abundance later if
+# it is desired 
+##########
 
 
 
@@ -659,6 +937,15 @@ hydro_tree_plot
 ##################
 
 ########## PAUSE
+
+
+
+
+
+
+
+
+
 
 
 
