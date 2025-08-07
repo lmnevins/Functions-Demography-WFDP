@@ -89,6 +89,8 @@ env <- read.csv("~/Dropbox/WSU/WFDP_Chapter_3_Project/Enviro_Data/WFDP_enviro_da
 
 # grab just sub_plot (referring to the subplot in WFDP - the site level) and Host_ID
 
+env$sub_plot <- env$Cell
+
 env <- select(env, Host_ID, sub_plot)
 
 
@@ -113,14 +115,14 @@ sites_tree <- sites_tree %>%
 # remove code column 
 traits_tree <- subset(traits, select = -c(code, WFDP_Code, sub_plot))
 
-#######################
+####ASSESS VARIATION IN RAW TRAIT DATA###################
 # pause and look at variation in raw traits between species 
 
 # Convert to long format for ggplot
-long_traits_tree <- pivot_longer(traits_tree, cols = -species, names_to = "trait", values_to = "value")
+long_traits_tree <- pivot_longer(traits_tree, cols = -Host_ID, names_to = "trait", values_to = "value")
 
 # Boxplot
-trait_plot_OG <- ggplot(long_traits_tree, aes(x = species, y = value, fill = species)) +
+trait_plot_OG <- ggplot(long_traits_tree, aes(x = Host_ID, y = value, fill = Host_ID)) +
   geom_boxplot() +
   facet_wrap(~trait, scales = "free_y") +  # Separate plots for each trait
   theme_minimal() +
@@ -134,7 +136,7 @@ trait_plot_OG
 # can use just the 'traits' data 
 
 # leaf C and N
-leaf_CN<- ggplot(traits, aes(x = leaf_pct_N, y = leaf_pct_C, color = species)) +
+leaf_CN<- ggplot(traits, aes(x = leaf_pct_N, y = leaf_pct_C, color = Host_ID)) +
   geom_point(size = 3) +
   theme_minimal() +
   labs(title = "Leaf N vs Leaf C", x = "Leaf N (%)", y = "Leaf C (%)")
@@ -146,7 +148,7 @@ leaf_CN
 
 
 # root C and N
-root_CN<- ggplot(traits, aes(x = root_pct_N, y = root_pct_C, color = species)) +
+root_CN<- ggplot(traits, aes(x = root_pct_N, y = root_pct_C, color = Host_ID)) +
   geom_point(size = 3) +
   theme_minimal() +
   labs(title = "Root N vs Root C", x = "Root N (%)", y = "Root C (%)")
@@ -155,7 +157,7 @@ root_CN
 
 # no visible trends 
 
-######################
+####
 
 #check the spread of the raw trait data 
 summary(traits_tree)
@@ -191,7 +193,6 @@ traits_tree_sc <- as.data.frame(traits_tree_sc)
 # traits_tree_minmax <- t(traits_tree_minmax)
 # summary(traits_tree_minmax)
 
-################################
 
 ## Explore the scaled trait data
 
@@ -303,8 +304,8 @@ pca_var_explained <- pca_var / sum(pca_var) * 100  # Convert to percentage
 
 
 # set colors for hosts 
-# ABAM        ABGR        ABPR          ALRU         CONU        TABR          THPL        TSHE        
-all_hosts <- c("#0D0887FF", "#5402A3FF", "#8B0AA5FF", "#B93289FF", "#DB5C68FF", "#F48849FF", "#ffe24cFF", "#fffd66")
+                  # ABAM        ABGR        ALRU         CONU        TABR          THPL        TSHE        
+all_hosts <- c("#0D0887FF", "#5402A3FF", "#B93289FF", "#DB5C68FF", "#F48849FF", "#ffe24cFF", "#fffd66")
 
 
 PCA_plot <- ggplot(scores.alltraits, aes(x = PC1, y = PC2, color = Host_ID)) +
@@ -316,8 +317,8 @@ PCA_plot <- ggplot(scores.alltraits, aes(x = PC1, y = PC2, color = Host_ID)) +
   theme_minimal() +
   scale_colour_manual(values=all_hosts, 
                       name="Host Species",
-                      breaks=c("ABAM", "ABGR", "ABPR", "ALRU", "CONU", "TABR", "THPL", "TSHE"),
-                      labels=c("ABAM", "ABGR", "ABPR", "ALRU", "CONU", "TABR", "THPL", "TSHE")) +
+                      breaks=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE"),
+                      labels=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE")) +
   labs(title = "PCA Biplot: Tree Leaf and Root Traits",
        x = paste0("PC1 (", round(pca_var_explained[1], 1), "%)"),
        y = paste0("PC2 (", round(pca_var_explained[2], 1), "%)"), 
@@ -424,8 +425,8 @@ PCA_plot_trees <- ggplot(scores.alltrees, aes(x = PC1, y = PC2, color = Host_ID)
   theme_minimal() +
   scale_colour_manual(values=all_hosts, 
                       name="Host Species",
-                      breaks=c("ABAM", "ABGR", "ABPR", "ALRU", "CONU", "TABR", "THPL", "TSHE"),
-                      labels=c("ABAM", "ABGR", "ABPR", "ALRU", "CONU", "TABR", "THPL", "TSHE")) +
+                      breaks=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE"),
+                      labels=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE")) +
   labs(title = "PCA Biplot: Tree Leaf and Root Traits",
        x = paste0("PC1 (", round(pca_var_explained[1], 1), "%)"),
        y = paste0("PC2 (", round(pca_var_explained[2], 1), "%)"), 
@@ -449,8 +450,11 @@ PCA_plot_trees
 # Grab PC1 and PC2 for each tree 
 alltrees_PCs <- select(scores.alltrees, PC1, PC2, WFDP_Code, Host_ID)
 
+# Save this file for later 
+write.csv(alltrees_PCs, "~/Dropbox/WSU/WFDP_Chapter_3_Project/Trait_Data/PCA/tree_PC_scores.csv")
 
-# Read back in envrionmental data for the trees 
+
+# Read back in environmental data for the trees 
 
 x # Right now this is just slope, aspect, and elevation, but will be able to pull in 
  # krieged data when it exists 
@@ -458,7 +462,7 @@ env <- read.csv("~/Dropbox/WSU/WFDP_Chapter_3_Project/Enviro_Data/WFDP_enviro_da
 
 # subset to data of interest 
 
-env <- select(env, sub_plot, WFDP_Code, slope, aspect, elevation_m)
+env <- select(env, Cell, WFDP_Code, slope, aspect, elevation_m)
 
 tree_PCs_env <- merge(env, alltrees_PCs, by = "WFDP_Code")
 
