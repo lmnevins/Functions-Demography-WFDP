@@ -54,7 +54,6 @@ env_data$STEM_TAG <- env_data$WFDP_Code
 env_data <- select(env_data, Cell, EM_Sample_Name, slope, aspect, elevation_m, Association, STEM_TAG)
 
 # Make association a factor 
-
 env_data$Association <- as.factor(env_data$Association)
 
 # Load in the tree PC values from the trait PCA
@@ -237,8 +236,8 @@ summary(lm_PC2_RGR) # SIGNIFICANT
 #### Nicer Plotting 
 
 #set colors for hosts
-# ABAM        ABGR        ABPR          ALRU         CONU        TABR          THPL        TSHE        
-all_hosts <- c("#0D0887FF", "#5402A3FF", "#8B0AA5FF", "#B93289FF", "#DB5C68FF", "#F48849FF", "#ffe24cFF", "#fffd66")
+                  # ABAM        ABG         ALRU         CONU        TABR          THPL        TSHE        
+all_hosts <- c("#0D0887FF", "#5402A3FF", "#B93289FF", "#DB5C68FF", "#F48849FF", "#ffe24cFF", "#fffd66")
 
 
 # Plot the Results by host
@@ -248,15 +247,15 @@ PC2_RGR_nice <- ggplot(diam_env_pc, aes(x = PC2, y = RGR, color = Host_ID, shape
   theme_minimal() +
   scale_colour_manual(values=all_hosts, 
                       name="Host Species",
-                      breaks=c("ABAM", "ABGR", "ABPR", "ALRU", "CONU", "TABR", "THPL", "TSHE"),
-                      labels=c("ABAM", "ABGR", "ABPR", "ALRU", "CONU", "TABR", "THPL", "TSHE")) +
+                      breaks=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE"),
+                      labels=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE")) +
   scale_shape_manual(
     values = c("EM" = 16, "Both" = 17), name = "Mycorrhizal Association") +
   labs(x = "PC2 Value", y = expression("Relative Growth Rate ("*yr^{-1}*")"), color = "Host_ID") +
-  theme(legend.title = element_text(colour="black", size=12)) +
+  theme(legend.title = element_text(colour="black", size=14, face = "bold")) +
   theme(legend.text = element_text(colour="black", size = 12)) +
   theme(axis.text = element_text(colour="black", size = 12)) +
-  theme(axis.title = element_text(colour="black", size = 12))
+  theme(axis.title = element_text(colour="black", size = 14))
 
 PC2_RGR_nice
 
@@ -271,8 +270,8 @@ PC2_RGR_nice2 <- ggplot(diam_env_pc, aes(x = PC2, y = diam_diff)) +
   scale_colour_manual(
     values = all_hosts,
     name = "Host Species",
-    breaks = c("ABAM", "ABGR", "ABPR", "ALRU", "CONU", "TABR", "THPL", "TSHE"),
-    labels = c("ABAM", "ABGR", "ABPR", "ALRU", "CONU", "TABR", "THPL", "TSHE")
+    breaks = c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE"),
+    labels = c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE")
   ) +
   labs(x = "PC2 Value", y = expression("Relative Growth Rate ("*yr^{-1}*")")) +
   theme(
