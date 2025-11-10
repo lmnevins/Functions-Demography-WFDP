@@ -29,9 +29,9 @@ library(raster); packageVersion("raster")
 #                                                                               #
 #################################################################################
 
-###############
+################ --
 # (1) DATA PREP
-############### 
+################ --
 
 wd <- "~/Dropbox/WSU/WFDP_Chapter_3_Project/Demography/"
 setwd(wd)
@@ -87,9 +87,9 @@ focal$Species <- as.factor(focal$Species)
 
 #################################################################################
 
-############################
+############################ -- 
 # (2) SPATIAL CALCULATIONS
-########################### 
+############################ --
 
 # Create universal system of locations for each focal tree and potential neighbors, 
 # so the neighbors within a given radius can be identified 
@@ -213,51 +213,367 @@ pred_plot
 st_write(st_as_sf(trees_geo, coords = c("UTM_X_pred", "UTM_Y_pred"), crs = 32610),
          "~/Dropbox/WSU/WFDP_Chapter_3_Project/GIS/WFDP_trees_georef.shp")
 
+#################################################################################
 
-# This is a file of the location of every tree in WFDP, this will maybe blow up 
-# my QGIS. I only need to really focus on the subset of trees that are within 
-# the neighborhood radius of each focal tree. 
+########################### -- 
+# (3) GENERATE WFDP VECTOR
+########################### --
 
-
-## ! Getting an error down below, so this isn't totally working 
-
-# Define WFDP boundary in local coordinates (m)
-wfdp_local <- data.frame(
-  x = c(0, 800, 800, 0, 0),
-  y = c(0, 0, 340, 340, 0)
+# Generate local coordinates based off of plot dimensions 
+wfdp_local_coords <- matrix(
+  c(0,   0,
+    800, 0,
+    800, 340,
+    0,   340,
+    0,   0), 
+  ncol = 2, byrow = TRUE
 )
+colnames(wfdp_local_coords) <- c("X", "Y")
 
-wfdp_local_sf <- st_as_sf(wfdp_local, coords = c("x", "y"), crs = NA) |>
-  summarise(geometry = st_combine(geometry)) |>
-  st_cast("POLYGON")
+# --- ensure numeric n x 2 matrix ---
+local_coords <- as.matrix(wfdp_local_coords)
+if(ncol(local_coords) < 2) stop("local_coords must have 2 columns (X,Y).")
+local_coords <- local_coords[, 1:2, drop = FALSE]  # enforce n x 2
 
-R <- matrix(c(0.99578848, 0.09168048,
-              -0.09168048, 0.99578848), ncol = 2, byrow = TRUE)
-translation <- c(580731, 5074350)
-scale_factor <- 1.000421
+# --- apply transformation ---
+n <- nrow(local_coords)
+translation_mat <- matrix(rep(translation, each = n), nrow = n, ncol = 2, byrow = FALSE)
 
-# Extract coordinates, transform, and rebuild polygon
-local_coords <- st_coordinates(wfdp_local_sf[[1]][[1]])
+utm_coords <- scale_factor * (local_coords %*% R) + translation_mat
 
-utm_coords <- scale_factor * (local_coords %*% R) +
-  matrix(rep(translation, each = nrow(local_coords)), ncol = 2, byrow = FALSE)
+# --- build sf polygon in UTM coordinates ---
+wfdp_utm_poly <- st_polygon(list(as.matrix(utm_coords)))
+wfdp_utm_sf <- st_sfc(wfdp_utm_poly, crs = 32610) %>% st_sf(plot = "WFDP_boundary")
 
-wfdp_utm_sf <- st_sf(
-  geometry = st_sfc(st_polygon(list(utm_coords))),
-  crs = 32610 # UTM zone 10N (assuming WFDP is in WA/OR)
-)
+# --- quick plot to check ---
+plot(st_geometry(wfdp_utm_sf), border = "darkgreen", lwd = 2, asp = 1)
+# if you have focal points in 'focal_sf' (EPSG:32610), plot them:
+if(exists("focal_sf")) {
+  plot(st_geometry(focal_sf), add = TRUE, col = "red", pch = 16)
+}
 
-
-st_write(wfdp_utm_sf, "WFDP_boundary_UTM.shp", delete_dsn = TRUE)
+# --- write shapefile  ---
+st_write(wfdp_utm_sf, "WFDP_boundary_UTM.shp", delete_layer = TRUE)
 
 
 #################################################################################
 
+############################ --
+# (4) PROCESS NEIGHBOR DATA
+############################ -- 
+
 #### In QGIS, I found the neighbors of each focal tree within a 9 m radius using 
-# the Buffer tool to set the radius, and the Vector Tool - Select by Location to 
+# the Buffer tool to set the radius, and Join Attributes by Location tool to 
 # pick just trees that intersected with the radius polygon of each focal tree 
 
-# Import neighbor trees shape file 
+# Import neighbor trees file 
+neighbors <- read.csv("./neighbor_trees.csv") #2,147 neighbors in total 
+
+# columns related to the focal tree are generally identified with a 'focal_' prefix, 
+# while columns related to the neighbors have a 'neigh_' prefix 
+
+
+# Explore the neighborhood data a bit 
+
+# summarize number of neighbors per focal tree
+neighbor_summary <- neighbors %>%
+  group_by(focal_stem_tag) %>%
+  summarise(
+    focal_species = first(focal_species),
+    focal_DBH = first(focal_DBH),
+    n_neighbors = n(),
+    mean_neighbor_DBH = mean(neigh_DBH, na.rm = TRUE),
+    sd_neighbor_DBH = sd(neigh_DBH, na.rm = TRUE))
+
+# overall mean and range
+summary_stats <- neighbor_summary %>%
+  summarise(
+    mean_neighbors = mean(n_neighbors),
+    sd_neighbors = sd(n_neighbors),
+    min_neighbors = min(n_neighbors),
+    max_neighbors = max(n_neighbors))
+
+neighbor_summary
+summary_stats
+
+# mean_neighbors     sd_neighbors     min_neighbors     max_neighbors
+#       35.8              17.4               7                86
+
+
+# plot count of neighbors 
+neigh_count <- ggplot(neighbor_summary, aes(x = n_neighbors)) +
+  geom_histogram(binwidth = 2, color = "white") +
+  theme_minimal() +
+  labs(
+    title = "Distribution of Neighbor Counts per Focal Tree",
+    x = "Number of Neighbors (within 10 m)",
+    y = "Number of Focal Trees"
+  )
+
+neigh_count
+
+
+# Check neighbors by focal species 
+neigh_spp <- ggplot(neighbor_summary, aes(x = focal_species, y = n_neighbors, fill = focal_species)) +
+  geom_boxplot(alpha = 0.7) +
+  theme_minimal() +
+  labs(
+    title = "Neighbor Density by Focal Species",
+    x = "Focal Species",
+    y = "Number of Neighbors"
+  ) +
+  theme(legend.position = "none")
+
+neigh_spp 
+
+
+# Check for relationship between tree size and number of neighbors 
+tree_size <- ggplot(neighbor_summary, aes(x = focal_DBH, y = n_neighbors)) +
+  geom_point(alpha = 0.6) +
+  geom_smooth(method = "lm", se = TRUE, color = "blue") +
+  theme_minimal() +
+  labs(
+    title = "Relationship Between Focal Tree DBH and Number of Neighbors",
+    x = "Focal Tree DBH (cm)",
+    y = "Number of Neighbors"
+  )
+
+tree_size 
+
+size_mod <- lm(focal_DBH ~ n_neighbors, data = neighbor_summary)
+
+summary(size_mod)
+
+# No relationship here 
+
+
+# Check for relationship between focal tree size and neighbor size 
+neigh_size <- ggplot(neighbor_summary, aes(x = focal_DBH, y = mean_neighbor_DBH)) +
+  geom_point(alpha = 0.6, size = 2) +
+  geom_smooth(method = "lm", se = TRUE, color = "blue") +
+  theme_minimal() +
+  labs(
+    title = "Relationship Between Focal Tree Size and Average Neighbor Size",
+    x = "Focal Tree DBH (cm)",
+    y = "Mean Neighbor DBH (cm)")
+
+neigh_size
+
+size_mod2 <- lm(focal_DBH ~ mean_neighbor_DBH, data = neighbor_summary)
+
+summary(size_mod2)
+
+# No relationship here 
+
+
+#################################################################################
+
+##################################### -- 
+# (5) CALCULATE NEIGHBORHOOD METRICS
+##################################### -- 
+
+# Need to calculate distances between the focal tree to each of its neighbors
+
+# The trees_geo df has the predicted and corrected UTMs for each of the trees, so I can 
+# subset this, then merge it with the neighbors data 
+
+trees_geo$neigh_stem_tag <- trees_geo$Stem_Tag
+
+geo_sub <- dplyr::select(trees_geo, neigh_stem_tag, UTM_X_pred, UTM_Y_pred)
+
+neighbors <- merge(neighbors, geo_sub, by = "neigh_stem_tag")
+
+
+
+# Each neighbor tree now has UTM coordinates, so can calculate it's distance to the focal tree
+
+
+# Make sure coordinates are numeric
+neighbors <- neighbors %>%
+  mutate(UTM_X_pred = as.numeric(UTM_X_pred),
+         UTM_Y_pred = as.numeric(UTM_Y_pred))
+
+# Make a few things factors 
+neighbors$focal_cell <- as.factor(neighbors$focal_cell)
+neighbors$focal_species <- as.factor(neighbors$focal_species)
+neighbors$neigh_species <- as.factor(neighbors$neigh_species)
+
+
+# Calculate distance and then calculate the crowding index per neighbor
+neighbors <- neighbors %>%
+  mutate(
+    # Step 1: Euclidean distance between focal and neighbor trees
+    distance = sqrt((UTM_X_pred - UTM_X)^2 + (UTM_Y_pred - UTM_Y)^2),
+    
+    # Step 2: Neighborhood crowding index contribution per neighbor
+    size_dist2 = (neigh_DBH^2) / (distance^2)
+  )
+
+
+# Summarize crowding 
+crowding_summary <- neighbors %>%
+  group_by(focal_stem_tag, focal_species, focal_DBH, focal_cell) %>%
+  summarise(
+    mean_neighbor_DBH = mean(neigh_DBH, na.rm = TRUE),
+    num_neighbors = n(),
+    crowding_index = sum(size_dist2, na.rm = TRUE),
+    .groups = "drop")
+
+# A high crowding index means the focal tree is surrounded by many large, nearby neighbors 
+# A low crowding index means few, small, or distant neighbors 
+
+### Visualize ### 
+
+# Relationship between focal tree size and crowding 
+size_crowd <- ggplot(crowding_summary, aes(x = crowding_index, y = focal_DBH)) +
+  geom_point(alpha = 0.6) +
+  geom_smooth(method = "lm", se = TRUE, color = "blue") +
+  theme_minimal() +
+  labs(
+    x = "Neighborhood Crowding Index (Σ(DBH² / distance²))",
+    y = "Focal Tree DBH (cm)",
+    title = "Relationship between Focal Tree Size and Local Crowding")
+
+size_crowd 
+
+
+crowd_mod1 <- lm(focal_DBH ~ crowding_index, data = crowding_summary)
+
+summary(crowd_mod1)
+
+# Significant relationship - bigger trees are more crowded (though this study was focused on 
+# trees 10 - 20 cm DBH so this is only a small snapshot)
+
+# Crowding across different species 
+spp_crowd <- ggplot(crowding_summary, aes(x = focal_species, y = crowding_index, fill = focal_species)) +
+  geom_boxplot() +
+  theme_minimal() +
+  labs(
+    x = "Focal Species",
+    y = "Neighborhood Crowding Index",
+    title = "Variation in Crowding by Focal Species"
+  ) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+spp_crowd 
+
+
+# Merge back in UTM info to be able to plot spatially 
+geo_sub_focal <- dplyr::select(neighbors, focal_stem_tag, UTM_X, UTM_Y) %>% unique()
+
+crowding_summary <- merge(crowding_summary, geo_sub_focal, by = "focal_stem_tag")
+
+
+# Spatial map of crowding across the plot 
+space_crowd <- ggplot(crowding_summary, aes(x = UTM_X, y = UTM_Y, color = crowding_index)) +
+  geom_point(size = 3) +
+  scale_color_viridis_c(option = "plasma") +
+  coord_equal() +
+  theme_minimal() +
+  labs(
+    x = "UTM Easting",
+    y = "UTM Northing",
+    color = "Crowding Index",
+    title = "Spatial Distribution of Neighborhood Crowding")
+
+space_crowd 
+
+# Doesn't seem like a consistent trend with crowding across the plot 
+
+
+#################################################################################
+
+##################################### -- 
+# (6) RELATIONSHIPS TO DEMOGRAPHY 
+##################################### -- 
+
+# Read in tree demographic data 
+growth <- read.csv("stems_WFDP_20250206_trimmed.csv")
+
+
+# get starting and ending diameters for all trees
+diams <- growth %>%
+  group_by(Stem_Tag, Species) %>%
+  summarise(
+    dia_first = DBH[which.min(DBH_DATE)],
+    dia_last = DBH[which.max(DBH_DATE)],
+    year_first = min(DBH_DATE),
+    year_last = max(DBH_DATE),
+    .groups = "drop"
+  )
+
+# get diameter difference between the two time points 
+diams <- diams %>%
+  mutate(diam_diff = dia_last - dia_first)
+
+# Calculate relative growth rate for each tree 
+diams <- diams %>%
+  mutate(RGR = (log(dia_last) - log(dia_first)) / (year_last - year_first))
+
+
+# Add column for stem tag to match the crowding data 
+diams$focal_stem_tag <- diams$Stem_Tag
+
+# Pair diams with the crowding summary file according to the focal_stem_tag
+crowd_growth_summary <- merge(diams, crowding_summary, by = "focal_stem_tag")
+
+### Visualize ### 
+
+#Explore relationships between crowding/neighbors and RGR
+
+
+# Relationship between focal tree RGR and # neighbors 
+RGR_num_neigh <- ggplot(crowd_growth_summary, aes(x = num_neighbors, y = RGR)) +
+  geom_point(alpha = 0.6) +
+  geom_smooth(method = "lm", se = TRUE, color = "blue") +
+  theme_minimal() +
+  labs(x = "Number of Neighbors", y = expression("Relative Growth Rate ("*yr^{-1}*")"))
+
+RGR_num_neigh
+
+
+RGR_mod1 <- lm(RGR ~ num_neighbors, data = crowd_growth_summary)
+
+summary(RGR_mod1)
+
+# Significant relationship, trees appear to grow faster with more close neighbors 
+# Adjusted R-squared:  0.1455, p-value: 0.001544
+
+
+# Relationship between focal tree RGR and mean neighbor DBH 
+RGR_size_neigh <- ggplot(crowd_growth_summary, aes(x = mean_neighbor_DBH, y = RGR)) +
+  geom_point(alpha = 0.6) +
+  geom_smooth(method = "lm", se = TRUE, color = "blue") +
+  theme_minimal() +
+  labs(x = "Mean Neighbor DBH", y = expression("Relative Growth Rate ("*yr^{-1}*")"))
+
+RGR_size_neigh
+
+
+RGR_mod2 <- lm(RGR ~ mean_neighbor_DBH, data = crowd_growth_summary)
+
+summary(RGR_mod2)
+
+# Significant relationship, trees appear to grow faster when their neighbors are smaller on average 
+# Adjusted R-squared:  0.165, p-value: 0.0007533
+
+
+# Relationship between focal tree RGR and crowding index
+RGR_crowd_neigh <- ggplot(crowd_growth_summary, aes(x = crowding_index, y = RGR)) +
+  geom_point(alpha = 0.6) +
+  geom_smooth(method = "lm", se = TRUE, color = "blue") +
+  theme_minimal() +
+  labs(x = "Crowding Index", y = expression("Relative Growth Rate ("*yr^{-1}*")"))
+
+RGR_crowd_neigh
+
+
+RGR_mod3 <- lm(RGR ~ crowding_index, data = crowd_growth_summary)
+
+summary(RGR_mod3)
+
+# Significant relationship, trees appear to grow faster when their neighbors are smaller on average 
+# Adjusted R-squared:  0.165, p-value: 0.0007533
 
 
 
