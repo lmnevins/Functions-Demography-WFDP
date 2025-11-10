@@ -199,94 +199,8 @@ mc_plot_loggers(tms, "~/Dropbox/WSU/WFDP_Chapter_3_Project/Dataloggers/")
 
 ################################################################
 
-###########################
-# (3) GENERATE WFDP VECTOR
-########################### 
-
-# Step 1: Define center in UTM (EPSG:32610)
-# Approximate UTM coordinates for 45.8197N, -121.9558W
-# Convert lat/lon to UTM
-center_latlon <- st_sfc(st_point(c(-121.9558, 45.8197)), crs = 4326)
-center_utm <- st_transform(center_latlon, 32610)  # UTM Zone 10N
-
-# Step 2: Define half-width/height in meters
-half_width <- 400   # E-W
-half_height <- 170  # N-S
-
-# Step 3: Build rectangle in UTM coordinates
-center_coords <- st_coordinates(center_utm)
-xmin <- center_coords[1] - half_width
-xmax <- center_coords[1] + half_width
-ymin <- center_coords[2] - half_height
-ymax <- center_coords[2] + half_height
-
-# Rectangle corners (clockwise)
-rect_coords <- matrix(
-  c(xmin, ymax,
-    xmax, ymax,
-    xmax, ymin,
-    xmin, ymin,
-    xmin, ymax), # close polygon
-  ncol = 2, byrow = TRUE
-)
-
-# Step 4: Create sf polygon in UTM
-plot_boundary_utm <- st_polygon(list(rect_coords)) |> 
-  st_sfc(crs = 32610) |> 
-  st_sf(plot_name = "WFDP")
-
-# Step 5: Export shapefile
-st_write(plot_boundary_utm, "WFDP_boundary_utm.shp", delete_layer = TRUE)
-
-# Step 6. Visualize
-plot(st_geometry(plot_boundary_utm), col = NA, border = "darkgreen", lwd = 2)
-points(center_lon, center_lat, pch = 19, col = "red")
-text(center_lon, center_lat, labels = "Center", pos = 3)
-
-# Right now this is oriented perfectly N-S E-W, but the actual plot is offset a bit 
-# Rotate plot to the -5.2 degree offset (switch to positive in relation to north)
-
-# center coordinates
-center_coords <- st_coordinates(center_utm)
-
-# Rotation angle in degrees (clockwise from north)
-theta <- 5.26
-theta_rad <- theta * pi / 180
-
-# Function to rotate points around center
-rotate_points <- function(xy, center, angle) {
-  x_shift <- xy[,1] - center[1]
-  y_shift <- xy[,2] - center[2]
-  
-  x_rot <- x_shift * cos(angle) - y_shift * sin(angle) + center[1]
-  y_rot <- x_shift * sin(angle) + y_shift * cos(angle) + center[2]
-  
-  cbind(x_rot, y_rot)
-}
-
-# Rotate rectangle coordinates
-rect_coords_rot <- rotate_points(rect_coords, center_coords, theta_rad)
-
-# Recreate polygon with rotation
-plot_boundary_utm_rot <- st_polygon(list(rect_coords_rot)) |>
-  st_sfc(crs = 32610) |>
-  st_sf(plot_name = "WFDP")
-
-# Optional: export
-st_write(plot_boundary_utm_rot, "WFDP_boundary_utm_rotated.shp", delete_layer = TRUE)
-
-# Visual check
-plot(st_geometry(plot_boundary_utm_rot), col = NA, border = "blue", lwd = 2)
-points(center_coords[1], center_coords[2], pch = 19, col = "red")
-
-# Load into shorter name 
-wfdp <- plot_boundary_utm_rot
-
-
-################################################################
-
 ##################################
-# (4) DATA PREP FOR INTERPOLATION
+# (3) DATA PREP FOR INTERPOLATION
 ################################## 
 
 # Load in datalogger coordinates 
@@ -337,7 +251,6 @@ grid <- st_intersection(st_sf(geometry = grid), wfdp_utm)
 
 
 ### Logger coordinates look funky, need to check these 
-
 
 
 #################################
