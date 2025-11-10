@@ -211,7 +211,7 @@ center_utm <- st_transform(center_latlon, 32610)  # UTM Zone 10N
 
 # Step 2: Define half-width/height in meters
 half_width <- 400   # E-W
-half_height <- 160  # N-S
+half_height <- 170  # N-S
 
 # Step 3: Build rectangle in UTM coordinates
 center_coords <- st_coordinates(center_utm)
@@ -250,7 +250,7 @@ text(center_lon, center_lat, labels = "Center", pos = 3)
 center_coords <- st_coordinates(center_utm)
 
 # Rotation angle in degrees (clockwise from north)
-theta <- 5.2
+theta <- 5.26
 theta_rad <- theta * pi / 180
 
 # Function to rotate points around center
@@ -336,4 +336,8 @@ grid <- st_make_grid(wfdp_utm, cellsize = 5, what = "centers")
 grid <- st_intersection(st_sf(geometry = grid), wfdp_utm)
 
 
- 
+### Logger coordinates look funky, need to check these 
+
+
+
+#################################
