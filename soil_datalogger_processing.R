@@ -1,5 +1,5 @@
 # -----------------------------------------------------------------------------#
-# Datalogger soil data 
+# Soil Datalogger Data Processing
 # Original Author: L. McKinley Nevins 
 # February 2, 2025
 # Software versions:  R v 4.4.1
@@ -17,21 +17,19 @@ library(tidyverse); packageVersion("tidyverse")
 library(dplyr); packageVersion("dplyr")
 library(ggplot2); packageVersion("ggplot2")
 library(myClim); packageVersion("myClim")
-library(geosphere); packageVersion("geosphere")
 library(sf); packageVersion("sf")
 
 #################################################################################
 #                               Main workflow                                   #
 #  Process the soil data from all of the dataloggers retrieved from WFDP using  #
 #  the myClim package, specifically designed to process microlimate datalogger  #
-#  data. Create a vector of WFDP and interpolate environmental variation        #
-#  across the plot.                                                             #
+#  data. Create a vector of WFDP boundary.                                      #
 #                                                                               #
 #################################################################################
 
-###############
+############### -- 
 # (1) DATA PREP
-############### 
+############### --
 
 wd <- "~/Dropbox/WSU/WFDP_Chapter_3_Project/Dataloggers/"
 setwd(wd)
@@ -61,9 +59,9 @@ tms.m <- mc_read_data(files_table = "files_table.csv",
 
 ###########################################################################################
 
-#####################
+##################### --
 # (2) DATA CLEANING
-##################### 
+##################### --
 
 # This was performed automatically while reading in, but I want the output file 
 
@@ -117,6 +115,45 @@ q <- q+ggplot2::guides(size = "none")
 q <- q+ggplot2::geom_line(aes(color = sensor_name))
 
 q
+
+
+# Visualize two that were pulled up by animals 
+
+## plot for J19
+tms.plot3 <- mc_filter(tms, localities = "J19")
+
+# running into a repeated issue with the new scale color
+
+r <- mc_plot_line(tms.plot3, sensors = c("TMS_T1", "TMS_moist"))
+r <- r+ggplot2::scale_color_manual(values = c("darkblue", "red"), name = NULL)
+r <- r+ggplot2::scale_x_datetime(date_breaks = "2 weeks", date_labels = "%W")
+r <- r+ggplot2::xlab("week")
+r <- r+ggplot2::scale_size_manual(values = c(0.3 ,0.3))
+r <- r+ggplot2::guides(size = "none")
+r <- r+ggplot2::geom_line(aes(color = sensor_name))
+
+r
+
+# Yep, major variation in temperature after about week 37, and the moisture drops a ton once 
+# it's no longer in the ground 
+
+
+## plot for N11
+tms.plot4 <- mc_filter(tms, localities = "N11")
+
+# running into a repeated issue with the new scale color
+
+s <- mc_plot_line(tms.plot4, sensors = c("TMS_T1", "TMS_moist"))
+s <- s+ggplot2::scale_color_manual(values = c("darkblue", "red"), name = NULL)
+s <- s+ggplot2::scale_x_datetime(date_breaks = "2 weeks", date_labels = "%W")
+s <- s+ggplot2::xlab("week")
+s <- s+ggplot2::scale_size_manual(values = c(0.3 ,0.3))
+s <- s+ggplot2::guides(size = "none")
+s <- s+ggplot2::geom_line(aes(color = sensor_name))
+
+s
+
+# Same as the other one, temp and moisture get crazy. Looks like they were pulled up right around the same time too. 
 
 
 ## raster
@@ -190,8 +227,9 @@ N39 <- tms.all$localities$N39
 # TMS_moist Min = 1144
 # TMS_moist range = 1562
 
-# This generates output plots to the specified directory that shows varation in temp
+# This generates output plots to the specified directory that shows variation in temp
 # and moisture over the whole study period 
+
 
 # Can subset this to just certain localities or certain sensors of interest 
 mc_plot_loggers(tms, "~/Dropbox/WSU/WFDP_Chapter_3_Project/Dataloggers/")
@@ -199,58 +237,106 @@ mc_plot_loggers(tms, "~/Dropbox/WSU/WFDP_Chapter_3_Project/Dataloggers/")
 
 ################################################################
 
-##################################
-# (3) DATA PREP FOR INTERPOLATION
-################################## 
+######################### --
+# (3) SPATIAL DATA PREP 
+######################### --
 
 # Load in datalogger coordinates 
 logger_data <- read.csv("~/Dropbox/WSU/WFDP_Chapter_3_Project/Enviro_Data/datalogger_coords_GIS.csv")
 
-# Create compatible id column 
-logger_data$locality_id <- logger_data$Cell
+
+# Check that data is intitially in EPSG: 4326, which is standard for GPS units 
+loggers <- st_as_sf(logger_data, coords = c("Lon_DD","Lat_DD"), crs = 4326)
+
+# check
+st_crs(loggers)
+st_bbox(loggers)
+
+# In CRS 4236 currently, but I want to reproject to ESG 32610 so I can perform the kriging 
+# analyses on the same map system as my other points, and the WFDP boundary
 
 
-# Get a summary of the mean and SD soil temperature and soil moisture across the time period
-# tms.all is the aggregated data for each sensor with mean, min, max, and percentiles
-# calculated for each variable 
-all_data <- mc_reshape_long(tms.all)
+loggers_utm <- st_transform(loggers, 32610)
 
-all_data$sensor_name <- as.factor(all_data$sensor_name)
-all_data$locality_id <- as.factor(all_data$locality_id)
+# check UTM values (should be ~580000, ~5074000)
+st_crs(loggers_utm)
+st_bbox(loggers_utm)
+head(st_coordinates(loggers_utm))
 
-
-# Join logger data to enviro data file 
-env <- merge(all_data, logger_data, by = "locality_id")
-
-
-# create a 'geometry' column that contains the point coordinates 
-env_sf <- st_as_sf(env, coords = c("Lon", "Lat"), crs = 4326)
-
-# Check coordinates read in correctly
-coords <- st_coordinates(env_sf) # Looks good
-
-view(coords)
 
 # TMS_T1 - soil temperature sensor in Tomst TMS (°C)
 # TMS_T2 - surface temperature sensor in Tomst TMS (°C)
 # TMS_T3 - air temperature sensor in Tomst TMS (°C)
 # TMS_moist - soil moisture sensor in Tomst TMS (raw TMS units)
 
-# Double check that the logger coordinates and WFDP polygon are using the same UTM
-# This allows the interpolation to be performed in meters 
 
-utm_crs <- 32610  # UTM zone 10N covers Washington
-loggers_utm <- st_transform(env_sf, crs = utm_crs)
-wfdp_utm <- st_transform(wfdp, crs = utm_crs)
-
-# create a grid across WFDP 
-# Right now this is at a 5 m resolution, could change this. I don't think I could 
-# confidently go any finer resolution. 
-grid <- st_make_grid(wfdp_utm, cellsize = 5, what = "centers")
-grid <- st_intersection(st_sf(geometry = grid), wfdp_utm)
+# Export the UTM coordinates to read into QGIS
+loggers_utm <- loggers_utm %>%
+  mutate(UTM_X = st_coordinates(.)[,1],
+         UTM_Y = st_coordinates(.)[,2]) %>%
+  st_drop_geometry()
 
 
-### Logger coordinates look funky, need to check these 
+## Final step - the two dataloggers that were pulled up by animals need to be removed 
+# so they are not wrongly used in the analyses - J19 and N11
 
+loggers_utm$Cell <- as.factor(loggers_utm$Cell)
+
+loggers_utm_sub <- loggers_utm %>%
+  filter(
+    !(Cell %in% c("J19", "N11")))
+
+
+# Save 
+write.csv(loggers_utm_sub, "~/Dropbox/WSU/WFDP_Chapter_3_Project/Enviro_Data/dataloggers_utm.csv", row.names = FALSE)
 
 #################################
+
+######################### --
+# (4) MERGE ENVIRO DATA  
+######################### --
+
+# Merge summary data of the envrionmental variation across the plot with the spatial coordinates 
+# This will give a set of variables that can be used for interpolation, or just to visualize 
+# variation in soil temp and moisture over space and time in the plot. 
+
+
+# Create compatible id column 
+loggers_utm_sub$locality_id <- loggers_utm_sub$Cell
+
+
+# Pull out aggregated data from myClim 
+
+# All time series aggregated with one value per sensor 
+tms_all_df <- myClim::mc_reshape_long(tms.all)
+
+# Daily aggregate of mean, range, coverage, and 95 percentile 
+tms_day_df <- myClim::mc_reshape_long(tms.day)
+
+
+
+# Switch to wide format for just the all_data
+# The daily data is giant and I need to decide if I need it 
+# This is excluding height data, but that is just where the different sensors 
+# are located, so that info is readily available 
+tms_all_means <- tms_all_df %>%
+  select(locality_id, sensor_name, value) %>%
+  pivot_wider(
+    names_from = sensor_name,
+    values_from = value)
+
+
+# This is now organized to have the aggregated data for each sensor locality 
+
+# Merge all mean data with the spatial dataset
+loggers_merged <- merge(loggers_utm_sub, tms_all_means, by = "locality_id")
+
+# Save
+write.csv(loggers_merged, "~/Dropbox/WSU/WFDP_Chapter_3_Project/Enviro_data/dataloggers_utm_mean_data.csv")
+
+
+## Note: If I want to look at variation over time I can use the tms_day_df, but 
+# it'll be a giant file
+
+
+# -- END -- # 
