@@ -5,20 +5,16 @@
 # Software versions:  R v 4.4.1
 #                     tidyverse v 2.0.0
 #                     dplyr v 1.1.4
-#                     ggplot2 v 3.5.1
-#                     rstatix v 0.7.2
-#                     ggpubr v 0.6.0
-#                     fundiversity v 1.1.1
-#                     vegan v 2.6.10
-#                     FD v 1.0.12.3
-#                     rcompanion v 2.5.0
-#                     ggfortify v 0.4.17
-#                     gginnards v 0.2.0.1
+#                     ggplot2 v 4.0.1
+#                     rstatix v 0.7.3
+#                     vegan v 2.7.2
+#                     rcompanion v 2.5.1
+#                     ggfortify v 0.4.19
+#                     gginnards v 0.2.0.2
 #                     ggrepel v 0.9.6
 #                     corrplot v 0.95
 #                     car v 3.1.3
-#                     FD 1.0.12.3
-#                     multcomp v 1.4.28
+#                     multcomp v 1.4.29
 #                     multcompView v 0.1.10
 #                     
 # -----------------------------------------------------------------------------#
@@ -28,17 +24,13 @@ library(tidyverse); packageVersion("tidyverse")
 library(dplyr); packageVersion("dplyr")
 library(ggplot2); packageVersion("ggplot2")
 library(rstatix); packageVersion("rstatix")
-library(ggpubr); packageVersion("ggpubr")
-library(fundiversity); packageVersion("fundiversity")
 library(vegan); packageVersion("vegan")
-library(FD); packageVersion("FD")
 library(rcompanion); packageVersion("rcompanion")
 library(ggfortify); packageVersion("ggfortify")
 library(gginnards); packageVersion("gginnards")
 library(ggrepel); packageVersion("ggrepel")
 library(corrplot); packageVersion("corrplot")
 library(car); packageVersion("car")
-library(FD); packageVersion("FD")
 library(multcomp); packageVersion("multcomp")
 library(multcompView); packageVersion("multcompView")
 
@@ -85,7 +77,7 @@ traits <- merge(leaf, root, by = 'code')
 # subset just variables of interest, excluding petiole data since it is absent for
 # needle-leaf species 
 
-traits <- select(traits, code, WFDP_Code = WFDP_Code.x, sub_plot = sub_plot.x, Host_ID = Host_ID.x, SLA_leaf, LDMC_leaf, LMA_leaf, 
+traits <- dplyr::select(traits, code, WFDP_Code = WFDP_Code.x, sub_plot = sub_plot.x, Host_ID = Host_ID.x, SLA_leaf, LDMC_leaf, LMA_leaf, 
                  leaf_pct_N, leaf_pct_C, leaf_CN, leaf_15N, leaf_13C, specific_root_length, specific_root_area,
                  root_dry_matter_cont, root_CN, root_15N, root_13C, avg_root_dia, root_pct_N, root_pct_C)
 
@@ -102,7 +94,7 @@ env <- read.csv("~/Dropbox/WSU/WFDP_Chapter_3_Project/Enviro_Data/WFDP_enviro_da
 
 env$sub_plot <- env$Cell
 
-env <- select(env, Host_ID, sub_plot)
+env <- dplyr::select(env, Host_ID, sub_plot)
 
 
 # create a presence-absence matrix from these 
@@ -134,21 +126,80 @@ traits_tree <- subset(traits, select = -c(code, WFDP_Code, sub_plot))
 # (2) ASSESS VARIATION IN RAW TRAIT DATA
 ########################################## -- 
 
+# set colors for hosts 
+# ABAM      ABGR      ALRU        CONU     TABR        THPL       TSHE        
+all_hosts <- c("#9b5fe0", "#16a4d8", "#60dbe8", "#8bd346","#efdf48", "#f9a52F", "#d64e12")
+
+
+
 # pause and look at variation in raw traits between species 
 
+
+#subset a few columns from traits 
+
+traits_sub <- dplyr::select(traits, -c("code", "WFDP_Code", "sub_plot"))
+
+
 # Convert to long format for ggplot
-long_traits_tree <- pivot_longer(traits_tree, cols = -Host_ID, names_to = "trait", values_to = "value")
+long_traits <- pivot_longer(traits_sub, cols = -(Host_ID), names_to = "trait", values_to = "value")
 
 # Boxplot
-trait_plot_OG <- ggplot(long_traits_tree, aes(x = Host_ID, y = value, fill = Host_ID)) +
+trait_plot_OG <- ggplot(long_traits, aes(x = Host_ID, y = value, fill = Host_ID)) +
   geom_boxplot() +
   facet_wrap(~trait, scales = "free_y") +  # Separate plots for each trait
-  theme_minimal() +
+  theme_bw() +
+  scale_colour_manual(values=all_hosts, 
+                      name="Host Species",
+                      breaks=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE"),
+                      labels=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE")) +
   labs(title = "Trait Variation Across Species", y = "Trait Value") +
-  theme(legend.position = "none") + # Removes legend since species are on x-axis
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+ theme(legend.position = "right")  +
+  theme(legend.title = element_text(colour="black", size=12, face="bold")) +
+  theme(legend.text = element_text(colour="black", size = 11)) + 
+  theme(
+    axis.text.x = element_text(size = 11, colour="black", angle = 45, hjust = 1),
+    axis.text.y = element_text(size = 11, colour="black"),
+    axis.title.y = element_text(size = 12, colour="black"),
+    axis.title.x = element_text(size = 12, colour="black"), 
+    strip.text = element_text(size = 11, colour="black"))
 
 trait_plot_OG
+
+
+# Take a closer look at just the isotopic results 
+
+isotopes <- dplyr::select(traits_sub, Host_ID, leaf_13C, leaf_15N, root_13C, root_15N)
+
+
+# Convert to long format for ggplot
+isotopes <- pivot_longer(isotopes, cols = -(Host_ID), names_to = "trait", values_to = "value")
+
+# Boxplot
+isotopes_plot <- ggplot(isotopes, aes(x = Host_ID, y = value, fill = Host_ID)) +
+  geom_boxplot() +
+  scale_fill_manual(values=all_hosts, 
+                      name="Host Species",
+                      breaks=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE"),
+                      labels=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE")) +
+  facet_wrap(~trait, scales = "free_y") +  # Separate plots for each trait
+  theme_bw() +
+  labs(title = "", y = expression("Isotope per mil"), x = "") +
+  theme(legend.position = "right")  +
+  theme(legend.title = element_text(colour="black", size=12, face="bold")) +
+  theme(legend.text = element_text(colour="black", size = 11)) + 
+  theme(
+    axis.text.x = element_text(size = 11, colour="black"),
+    axis.text.y = element_text(size = 11, colour="black"),
+    axis.title.y = element_text(size = 12, colour="black"),
+    axis.title.x = element_text(size = 12, colour="black"), 
+    strip.text = element_text(size = 12, colour="black"))
+
+isotopes_plot
+
+## Can do some stats here if desired to test for differences between the species for 
+# these values 
+
+
 
 # correlations between raw trait values 
 # can use just the 'traits' data 
@@ -236,70 +287,24 @@ long_traits_tree_sc <- pivot_longer(long_traits_tree_sc, cols = -Host_ID, names_
 # perform a PCA to assess the axes of trait variation for the trees 
     # using unscaled data because the PCA does the scaling internally, and not using means 
 
-# first need to check for autocorrelation in my traits, since many of them are very related
-
-# remove code and species columns to get everything numeric
-traits_corr <- subset(traits, select = -c(code, WFDP_Code, sub_plot, Host_ID))
-
-cor_matrix <- cor(traits_corr, use = "everything")
-print(cor_matrix)
-
-corrplot(cor_matrix, method = "color", type = "upper", tl.cex = 0.7)
-
-
-# dropping a few highly correlated traits would help, and would make the PCA results cleaner 
-# making choices to retain certain traits that are most related to the fungal collaboration 
-# gradient 
-
-  # leaf_CN - highly correlated with leaf_pct_N
-  # root_CN - highly correlated with root_pct_N
-  # specific_root_area - highly correlated with specific_root_length, but SRL is a key collab trait 
-  # LDMC_leaf - highly correlated with SLA and LMA, also redundant 
-  # leaf_pct_C - Highly correlated with SLA and redundant in showing structural investment
-  # SLA_leaf - inverse to LMA, so redundant 
-
-# trying with just removing these 3 and we'll see how it goes 
-
-# traits 
-traits_nocorr <- subset(traits, select = -c(code, WFDP_Code, sub_plot, Host_ID, leaf_CN, root_CN, specific_root_area, 
-                                            LDMC_leaf, leaf_pct_C, SLA_leaf))
-
-#check correlations again 
-cor_matrix2 <- cor(traits_nocorr, use = "everything")
-print(cor_matrix2)
-
-corrplot(cor_matrix2, method = "color", type = "upper", tl.cex = 0.7)
-
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          
-# much better
-
-# load Host_ID and WFDP_code columns back into traits_nocorr
-traits_nocorr$Host_ID <- traits$Host_ID
-
-traits_nocorr$WFDP_Code <- traits$WFDP_Code
-
- 
-################################### -- 
-# perform PCA on 'traits_nocorr' dataset
-# "traits_nocorr" data has a column for Host_ID and WFDP_code in the last two positions, 
-# so need to exclude those 
+# "traits" data has info columns in the first four positions, so need to exclude those 
 
 #All Traits and individual tree positions 
-alltraits.pca = prcomp(traits_nocorr[1:11], center = T, scale = T)
+alltraits.pca = prcomp(traits[5:21], center = T, scale = T)
 
 sd.alltraits = alltraits.pca$sdev
 loadings.alltraits = alltraits.pca$rotation
-trait.names.alltraits = colnames(traits_nocorr[1:11])
+trait.names.alltraits = colnames(traits[5:21])
 scores.alltraits = as.data.frame(alltraits.pca$x)
-scores.alltraits$WFDP_Code = traits_nocorr$WFDP_Code
-scores.alltraits$Host_ID = traits_nocorr$Host_ID
+scores.alltraits$WFDP_Code = traits$WFDP_Code
+scores.alltraits$Host_ID = traits$Host_ID
 summary(alltraits.pca)
 
 # Save loadings for all traits
-write.csv(loadings.alltraits, "./PCA/PCA_loadings_nocorrelatedtraits_tree.csv", row.names = TRUE)
+write.csv(loadings.alltraits, "./PCA/PCA_loadings_alltraits_tree.csv", row.names = TRUE)
 
 #Save species scores
-write.csv(scores.alltraits, "./PCA/PCA_scores_nocorrelatedtraits_tree.csv")
+write.csv(scores.alltraits, "./PCA/PCA_scores_alltraits_tree.csv")
 
 
 # PCA scores are 'scores.alltraits' with column for Host_ID
@@ -311,27 +316,36 @@ pca_var <- alltraits.pca$sdev^2  # Eigenvalues (variance of each PC)
 pca_var_explained <- pca_var / sum(pca_var) * 100  # Convert to percentage
 
 
-# set colors for hosts 
-                  # ABAM        ABGR        ALRU         CONU        TABR          THPL        TSHE        
-all_hosts <- c("#0D0887FF", "#5402A3FF", "#B93289FF", "#DB5C68FF", "#F48849FF", "#ffe24cFF", "#fffd66")
+# Change loadings names to something cleaner 
+new_loadings <- c("SLA", "LDMC", "LMA", "Leaf_PctN", "Leaf_PctC", "Leaf_CN", "Leaf_d15N", 
+                  "Leaf_d13C", "SRL", "SRA", "RDMC", "Root_CN", 
+                  "Root_d15N", "Root_d13C", "RD", "Root_PctN", "Root_PctC")
+rownames(loadings.alltraits) <- new_loadings
 
 
 PCA_plot <- ggplot(scores.alltraits, aes(x = PC1, y = PC2, color = Host_ID)) +
   geom_point(size = 3) +
   geom_segment(data = loadings.alltraits, aes(x = 0, y = 0, xend = PC1 * 10, yend = PC2 * 10),
                arrow = arrow(length = unit(0.2, "cm")), color = "black") + 
-  geom_text_repel(data = loadings.alltraits, aes(x = PC1 * 10, y = PC2 * 10, label = rownames(loadings.alltraits)),
+  geom_text_repel(data = loadings.alltraits, aes(x = PC1 * 11, y = PC2 * 11, label = rownames(loadings.alltraits)),
                   color = "black", size = 4, max.overlaps = 10) +
   theme_minimal() +
   scale_colour_manual(values=all_hosts, 
                       name="Host Species",
                       breaks=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE"),
                       labels=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE")) +
-  labs(title = "PCA Biplot: Tree Leaf and Root Traits",
+  labs(title = "",
        x = paste0("PC1 (", round(pca_var_explained[1], 1), "%)"),
        y = paste0("PC2 (", round(pca_var_explained[2], 1), "%)"), 
        color = "Host Species") +
-  theme(legend.position = "right")
+  theme(legend.position = "right")  +
+  theme(legend.title = element_text(colour="black", size=12, face="bold")) +
+  theme(legend.text = element_text(colour="black", size = 11)) + 
+  theme(
+    axis.text.x = element_text(size = 11, colour="black"),
+    axis.text.y = element_text(size = 11, colour="black"),
+    axis.title.y = element_text(size = 12, colour="black"),
+    axis.title.x = element_text(size = 12, colour="black"))
 
 PCA_plot
 
@@ -380,12 +394,12 @@ top_PC1 <- loadings.alltraits[order(abs(loadings.alltraits$PC1), decreasing = TR
 top_PC2 <- loadings.alltraits[order(abs(loadings.alltraits$PC2), decreasing = TRUE), ][1:4, ]
 
 
-# PC1 is showing a perfect spread of "Do It yourself" and "Outsourcing" with SRL, leaf N, 
-# root N, and average root diameter being the strongest associated. 
+# PC1 is showing a spread of Leaf_PctN, Leaf_CN, SLA, and LDMC. This reflects conservative vs 
+# acquisitive strategies, with more conservative needle-leaf species with more negative values, 
+# and more acquisitive broadleaf species with more positive values. 
 
-# PC2 is showing a spread of LMA, root C, and leaf and root 15N. This could suggest that 
-# there are differing amounts of investment into leaf and root tissues, and maybe an impact 
-# of nitrogen nutrition too 
+# PC2 is showing a spread of SRA, SRL, Root_CN, and Root_PctN. This is pretty much just the equivalent 
+# of PC1 reflecting leaf strategies. This also shows a "Do-it-yourself" vs "Outsourcing" strategies trade-off. 
 
 ###
 
@@ -397,7 +411,7 @@ top_PC2 <- loadings.alltraits[order(abs(loadings.alltraits$PC2), decreasing = TR
 # related to the traits of the host tree 
 
 # Grab PC1 and PC2 for each tree 
-alltrees_PCs <- select(scores.alltraits, PC1, PC2, WFDP_Code, Host_ID)
+alltrees_PCs <- dplyr::select(scores.alltraits, PC1, PC2, WFDP_Code, Host_ID)
 
 # Save this file for later 
 write.csv(alltrees_PCs, "~/Dropbox/WSU/WFDP_Chapter_3_Project/Trait_Data/PCA/tree_PC_scores.csv")
@@ -417,71 +431,27 @@ env <- dplyr::select(env, WFDP_Code, Association)
 ## Leaves first: 
 
 # Subset to traits excluding petiole 
-leaf_sub <- select(leaf, code, WFDP_Code, sub_plot, Host_ID, SLA_leaf, LDMC_leaf, LMA_leaf, 
+leaf_sub <- dplyr::select(leaf, code, WFDP_Code, sub_plot, Host_ID, SLA_leaf, LDMC_leaf, LMA_leaf, 
                    leaf_pct_N, leaf_pct_C, leaf_CN, leaf_15N, leaf_13C)
 
-# remove code and species columns to get everything numeric
-leaf_traits_corr <- subset(leaf_sub, select = -c(code, WFDP_Code, sub_plot, Host_ID))
-
-leaf_cor_matrix <- cor(leaf_traits_corr, use = "everything")
-print(leaf_cor_matrix)
-
-corrplot(leaf_cor_matrix, method = "color", type = "upper", tl.cex = 0.7)
-
-# Try again removing strongly related traits 
-leaf_traits_corr2 <- subset(leaf_traits_corr, select = -c(leaf_CN, LMA_leaf, LDMC_leaf))
-
-leaf_cor_matrix2 <- cor(leaf_traits_corr2, use = "everything")
-print(leaf_cor_matrix2)
-corrplot(leaf_cor_matrix2, method = "color", type = "upper", tl.cex = 0.7)
-
-# This looks better, a couple are still related but we'll keep them for now 
-
-# load Host_ID and WFDP_code columns back into leaf_traits_corr2
-leaf_traits_corr2$Host_ID <- leaf$Host_ID
-leaf_traits_corr2$WFDP_Code <- leaf$WFDP_Code
-
 # Then roots: 
-root_sub <- select(root, code, WFDP_Code, sub_plot, Host_ID, specific_root_length, 
+root_sub <- dplyr::select(root, code, WFDP_Code, sub_plot, Host_ID, specific_root_length, 
                    specific_root_area, root_dry_matter_cont, root_CN, root_15N, 
                    root_13C, avg_root_dia, root_pct_N, root_pct_C)
-
-
-# remove code and species columns to get everything numeric
-root_traits_corr <- subset(root_sub, select = -c(code, WFDP_Code, sub_plot, Host_ID))
-
-root_cor_matrix <- cor(root_traits_corr, use = "everything")
-print(root_cor_matrix)
-
-corrplot(root_cor_matrix, method = "color", type = "upper", tl.cex = 0.7)
-
-# Try again removing strongly related traits 
-root_traits_corr2 <- subset(root_traits_corr, select = -c(root_CN, specific_root_area))
-
-root_cor_matrix2 <- cor(root_traits_corr2, use = "everything")
-print(root_cor_matrix2)
-corrplot(root_cor_matrix2, method = "color", type = "upper", tl.cex = 0.7)
-
-
-# This looks better, a couple are still related but we'll keep them for now 
-
-# load Host_ID and WFDP_code columns back into root_traits_corr2
-root_traits_corr2$Host_ID <- root$Host_ID
-root_traits_corr2$WFDP_Code <- root$WFDP_Code
 
 ################################### -- 
 
 # PCAs
 
 ## Leaves
-leaf.pca = prcomp(leaf_traits_corr2[1:5], center = T, scale = T)
+leaf.pca = prcomp(leaf_sub[5:12], center = T, scale = T)
 
 sd.leaf = leaf.pca$sdev
 loadings.leaf = leaf.pca$rotation
-trait.names.leaf = colnames(leaf_traits_corr2[1:5])
+trait.names.leaf = colnames(leaf_sub[5:12])
 scores.leaf = as.data.frame(leaf.pca$x)
-scores.leaf$WFDP_Code = leaf_traits_corr2$WFDP_Code
-scores.leaf$Host_ID = leaf_traits_corr2$Host_ID
+scores.leaf$WFDP_Code = leaf_sub$WFDP_Code
+scores.leaf$Host_ID = leaf_sub$Host_ID
 summary(leaf.pca)
 
 # Save loadings for leaf traits
@@ -503,7 +473,7 @@ pca_var_explained <- pca_var / sum(pca_var) * 100  # Convert to percentage
 scores.leaf <- merge(scores.leaf, env, by = "WFDP_Code")
 
 # Change loadings names to something cleaner 
-new_loadings <- c("SLA", "PctN", "PctC", "d15N", "d13C")
+new_loadings <- c("SLA", "LDMC", "LMA", "PctN", "PctC", "C:N", "d15N", "d13C")
 rownames(loadings.leaf) <- new_loadings
 
 # Visualize
@@ -514,16 +484,22 @@ PCA_plot_leaf <- ggplot(scores.leaf, aes(x = PC1, y = PC2, color = Association))
   geom_text_repel(data = loadings.leaf, aes(x = PC1 * 11, y = PC2 * 11, label = rownames(loadings.leaf)),
                   color = "black", size = 4, max.overlaps = 10) +
   theme_minimal() +
-  scale_color_manual(values = c("EM" = "#FFC20A", "Both" = "#0C7BDC"), name = "Mycorrhizal Association") + 
+  scale_color_manual(values = c("AM" = "#dc267f", "DUAL" = "#648fff", "EM" = "#ffb000"), name = "Mycorrhizal Association") + 
   scale_shape_manual(
     values = c("ABAM" = 21, "ABGR" = 22, "ALRU" = 23, "CONU" = 24, "TABR" = 25, "THPL" = 7, "TSHE" = 8), name = "Host Species") +
-  labs(title = "Tree Leaf Traits",
+  labs(title = "",
        x = paste0("PC1 (", round(pca_var_explained[1], 1), "%)"),
        y = paste0("PC2 (", round(pca_var_explained[2], 1), "%)"), 
        color = "Host Species") +
   theme(legend.position = "right")  +
   theme(legend.title = element_text(colour="black", size=12, face="bold")) +
-  theme(legend.text = element_text(colour="black", size = 11))
+  theme(legend.text = element_text(colour="black", size = 11)) + 
+  theme(
+  axis.text.x = element_text(size = 11, colour="black"),
+  axis.text.y = element_text(size = 11, colour="black"),
+  axis.title.y = element_text(size = 12, colour="black"),
+  axis.title.x = element_text(size = 12, colour="black"), 
+  strip.text = element_text(size = 12, colour="black"))
 
 PCA_plot_leaf
 
@@ -535,12 +511,12 @@ top_PC1_leaf <- loadings.leaf[order(abs(loadings.leaf$PC1), decreasing = TRUE), 
 top_PC2_leaf <- loadings.leaf[order(abs(loadings.leaf$PC2), decreasing = TRUE), ][1:3, ]
 
 
-# PC1 is being driven by variation in SLA and leaf C and N content, which matches what 
+# PC1 is being driven by variation in SLA, C:N ratio, and LMA, which matches what 
 # would be expected for broad leaf vs needle-leaf species 
 
 # PC2 is being driven by the d13C, d15N, and leaf C content. 
 
-## Together the axes explain 81.8% of the variation 
+## Together the axes explain 83% of the variation 
 
 ### Calculate average PC1 score for each species and plot, compare statistically 
 
@@ -557,7 +533,7 @@ PC1_leaf_summary <- PC1_leaf %>%
 
 # Add in mycorrhizal associations 
 
-PC1_leaf_summary$Association <- c("EM", "EM", "Both", "Both", "Both", "Both", "EM")
+PC1_leaf_summary$Association <- c("EM", "EM", "DUAL", "AM", "DUAL", "AM", "EM")
 
 
 # Test for significant differences between species 
@@ -567,32 +543,58 @@ summary(aov_PC1_leaf)
 tuk_PC1_leaf <- TukeyHSD(aov_PC1_leaf)
 tuk_PC1_leaf
 
-# Significant differences between species, essentially between 
-# ALRU/CONU and all others 
+# Significant differences between species
 
-# extract pairwise p-values
-tuk_cld <- multcompLetters4(aov_PC1_leaf, tuk_PC1_leaf)
+# 
+# Df Sum Sq Mean Sq F value Pr(>F)    
+# Host_ID      6 278.23   46.37   73.22 <2e-16 ***
+#   Residuals   53  33.57    0.63                   
+# ---
+#   Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
 
-# combine letters with summary table
-PC1_leaf_summary$letters <- tuk_cld$Host_ID %>% 
-  as.data.frame() %>% 
-  pull(Letters)
+
+# diff        lwr        upr     p adj
+# ABGR-ABAM  0.16268695 -1.0966228  1.4219967 0.9996720
+# ALRU-ABAM  5.68653124  4.3508315  7.0222310 0.0000000
+# CONU-ABAM  5.58763194  4.4970377  6.6782262 0.0000000
+# TABR-ABAM  2.12042740  0.9999483  3.2409065 0.0000076
+# THPL-ABAM  0.70461331 -0.3859810  1.7952076 0.4392132
+# TSHE-ABAM  1.31125112  0.2206569  2.4018454 0.0091466
+# ALRU-ABGR  5.52384429  4.0471727  7.0005159 0.0000000
+# CONU-ABGR  5.42494499  4.1656352  6.6842548 0.0000000
+# TABR-ABGR  1.95774045  0.6724628  3.2430181 0.0004033
+# THPL-ABGR  0.54192636 -0.7173834  1.8012361 0.8401720
+# TSHE-ABGR  1.14856417 -0.1107456  2.4078739 0.0956199
+# CONU-ALRU -0.09889929 -1.4345990  1.2368004 0.9999875
+# TABR-ALRU -3.56610384 -4.9263139 -2.2058938 0.0000000
+# THPL-ALRU -4.98191793 -6.3176177 -3.6462182 0.0000000
+# TSHE-ALRU -4.37528012 -5.7109799 -3.0395804 0.0000000
+# TABR-CONU -3.46720455 -4.5876836 -2.3467255 0.0000000
+# THPL-CONU -4.88301863 -5.9736129 -3.7924244 0.0000000
+# TSHE-CONU -4.27638083 -5.3669751 -3.1857866 0.0000000
+# THPL-TABR -1.41581409 -2.5362932 -0.2953350 0.0052176
+# TSHE-TABR -0.80917628 -1.9296554  0.3113028 0.3062035
+# TSHE-THPL  0.60663781 -0.4839565  1.6972321 0.6161183
+
+
 
 # Visualize 
 PC1_leaf_plot <- ggplot(PC1_leaf_summary, aes(x = Host_ID, y = mean_PC1, fill = Association)) +
   geom_col() +
   geom_errorbar(aes(ymin = mean_PC1 - se_PC1, ymax = mean_PC1 + se_PC1), width = 0.2) +
-  theme_bw() +
-  scale_fill_manual(values = c("EM" = "#FFC20A", "Both" = "#0C7BDC"), , name = "Mycorrhizal Association") + 
+  theme_minimal() +
+  scale_fill_manual(values = c("AM" = "#dc267f", "DUAL" = "#648fff", "EM" = "#ffb000"), name = "Mycorrhizal Association") + 
   labs(title = "", x = "", y = "PCA Axis 1 - LES") +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 11)) +
   theme(legend.title = element_text(colour="black", size=12, face="bold")) +
-  theme(legend.text = element_text(colour="black", size = 11))
+  theme(legend.text = element_text(colour="black", size = 11)) + 
+  theme(
+    axis.text.x = element_text(size = 11, colour="black"),
+    axis.text.y = element_text(size = 11, colour="black"),
+    axis.title.y = element_text(size = 12, colour="black"),
+    axis.title.x = element_text(size = 12, colour="black"), 
+    strip.text = element_text(size = 12, colour="black"))
 
 PC1_leaf_plot
-
-## Need to add significance values to this but they are a bit complicated, 
-# so can come back and do this 
 
 
 ### Calculate average PC2 score for each species and plot, compare statistically 
@@ -610,7 +612,7 @@ PC2_leaf_summary <- PC2_leaf %>%
 
 # Add in mycorrhizal associations 
 
-PC2_leaf_summary$Association <- c("EM", "EM", "Both", "Both", "Both", "Both", "EM")
+PC2_leaf_summary$Association <- c("EM", "EM", "DUAL", "AM", "DUAL", "AM", "EM")
 
 
 # Test for significant differences between species 
@@ -621,53 +623,67 @@ tuk_PC2_leaf <- TukeyHSD(aov_PC2_leaf)
 tuk_PC2_leaf
 
 # Significant differences between species
+# 
 
-# TABR-ABAM < 0.001
-# THPL-ABAM < 0.001
-# TABR-ABGR < 0.001
-# THPL-ABGR < 0.001
-# TABR-ALRU < 0.001
-# TABR-CONU < 0.001
-# THPL-TABR 0.004
-# TSHE-TABR < 0.001
-# TSHE-THPL < 0.001
+# Df Sum Sq Mean Sq F value   Pr(>F)    
+# Host_ID      6  60.25  10.042   26.97 1.78e-14 ***
+#   Residuals   53  19.74   0.372                     
+# ---
+#   Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
 
-# extract pairwise p-values
-tuk_cld_PC2_leaf <- multcompLetters4(aov_PC2_leaf, tuk_PC2_leaf)
 
-# combine letters with summary table
-PC2_leaf_summary$letters <- tuk_cld_PC2_leaf$Host_ID %>% 
-  as.data.frame() %>% 
-  pull(Letters)
+# diff         lwr        upr     p adj
+# ABGR-ABAM  0.10680364 -0.85884546  1.0724527 0.9998670
+# ALRU-ABAM -0.83095384 -1.85517938  0.1932717 0.1852557
+# CONU-ABAM  0.09424538 -0.74203127  0.9305220 0.9998516
+# TABR-ABAM -2.64582128 -3.50501386 -1.7866287 0.0000000
+# THPL-ABAM -1.52355347 -2.35983011 -0.6872768 0.0000166
+# TSHE-ABAM -0.05215977 -0.88843642  0.7841169 0.9999955
+# ALRU-ABGR -0.93775748 -2.07008141  0.1945665 0.1669306
+# CONU-ABGR -0.01255826 -0.97820735  0.9530908 1.0000000
+# TABR-ABGR -2.75262492 -3.73818640 -1.7670634 0.0000000
+# THPL-ABGR -1.63035710 -2.59600620 -0.6647080 0.0000707
+# TSHE-ABGR -0.15896341 -1.12461251  0.8066857 0.9986890
+# CONU-ALRU  0.92519922 -0.09902631  1.9494248 0.1016337
+# TABR-ALRU -1.81486744 -2.85788767 -0.7718472 0.0000405
+# THPL-ALRU -0.69259962 -1.71682516  0.3316259 0.3837488
+# TSHE-ALRU  0.77879407 -0.24543146  1.8030196 0.2493788
+# TABR-CONU -2.74006666 -3.59925924 -1.8808741 0.0000000
+# THPL-CONU -1.61779885 -2.45407549 -0.7815222 0.0000048
+# TSHE-CONU -0.14640515 -0.98268180  0.6898715 0.9981469
+# THPL-TABR  1.12226782  0.26307524  1.9814604 0.0034928
+# TSHE-TABR  2.59366151  1.73446893  3.4528541 0.0000000
+# TSHE-THPL  1.47139369  0.63511704  2.3076703 0.0000328
 
 # Visualize 
 PC2_leaf_plot <- ggplot(PC2_leaf_summary, aes(x = Host_ID, y = mean_PC2, fill = Association)) +
   geom_col() +
   geom_errorbar(aes(ymin = mean_PC2 - se_PC2, ymax = mean_PC2 + se_PC2), width = 0.2) +
-  theme_bw() +
-  scale_fill_manual(values = c("EM" = "#FFC20A", "Both" = "#0C7BDC"), , name = "Mycorrhizal Association") + 
-  labs(title = "", x = "", y = "PCA Axis 2 - LES") +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 11)) +
+  theme_minimal() +
+  scale_fill_manual(values = c("AM" = "#dc267f", "DUAL" = "#648fff", "EM" = "#ffb000"), name = "Mycorrhizal Association") + 
+  labs(title = "", x = "", y = "PCA Axis 2") +
   theme(legend.title = element_text(colour="black", size=12, face="bold")) +
-  theme(legend.text = element_text(colour="black", size = 11))
+  theme(legend.text = element_text(colour="black", size = 11)) + 
+  theme(
+    axis.text.x = element_text(size = 11, colour="black"),
+    axis.text.y = element_text(size = 11, colour="black"),
+    axis.title.y = element_text(size = 12, colour="black"),
+    axis.title.x = element_text(size = 12, colour="black"), 
+    strip.text = element_text(size = 12, colour="black"))
 
 PC2_leaf_plot
-
-## Need to add significance values to this but they are a bit complicated, 
-# so can come back and do this 
-
 
 ############### -- 
 
 ## Roots
-root.pca = prcomp(root_traits_corr2[1:7], center = T, scale = T)
+root.pca = prcomp(root_sub[5:13], center = T, scale = T)
 
 sd.root = root.pca$sdev
 loadings.root = root.pca$rotation
-trait.names.root = colnames(root_traits_corr2[1:7])
+trait.names.root = colnames(root_sub[5:13])
 scores.root = as.data.frame(root.pca$x)
-scores.root$WFDP_Code = root_traits_corr2$WFDP_Code
-scores.root$Host_ID = root_traits_corr2$Host_ID
+scores.root$WFDP_Code = root_sub$WFDP_Code
+scores.root$Host_ID = root_sub$Host_ID
 summary(root.pca)
 
 # Save loadings for root traits
@@ -679,10 +695,25 @@ write.csv(scores.root, "./PCA/PCA_scores_root_traits.csv")
 
 # PCA scores are 'scores.root' with column for Host_ID
 
-loadings.root <- as.data.frame(loadings.root)
+# The PC1 axis is the equivalent of the leaf conservative-acquisitive axis, but right now the direction is 
+# flipped so it's less intuitive to interpret them together. Going to multiply the PC1 values by -1 to 
+# flip the orientation, and this doesn't do anything to the actual PCA, or the PC2 axis. 
+
+# Flip PC1 scores
+root.pca$x[, "PC1"] <- -1 * root.pca$x[, "PC1"]
+
+# Flip PC1 loadings
+root.pca$rotation[, "PC1"] <- -1 * root.pca$rotation[, "PC1"]
+
+# Load back into items for plotting 
+scores.root   <- as.data.frame(root.pca$x)
+scores.root$WFDP_Code = root_sub$WFDP_Code
+scores.root$Host_ID = root_sub$Host_ID
+
+loadings.root <- as.data.frame(root.pca$rotation)
 
 # Change loadings names to something cleaner 
-new_loadings_root <- c("SRL", "RDMC", "d15N", "d13C", "RD", "PctN", "PctC")
+new_loadings_root <- c("SRL", "SRA", "RDMC", "C:N", "d15N", "d13C", "RD", "PctN", "PctC")
 rownames(loadings.root) <- new_loadings_root
 
 #Merge in mycorrhizal association for plotting 
@@ -692,6 +723,7 @@ scores.root <- merge(scores.root, env, by = "WFDP_Code")
 pca_var <- root.pca$sdev^2  # Eigenvalues (variance of each PC)
 pca_var_explained <- pca_var / sum(pca_var) * 100  # Convert to percentage
 
+
 # Visualize
 PCA_plot_root <- ggplot(scores.root, aes(x = PC1, y = PC2, color = Association)) +
   geom_point(size = 3, aes(shape = Host_ID)) +
@@ -700,7 +732,7 @@ PCA_plot_root <- ggplot(scores.root, aes(x = PC1, y = PC2, color = Association))
   geom_text_repel(data = loadings.root, aes(x = PC1 * 11, y = PC2 * 11, label = rownames(loadings.root)),
                   color = "black", size = 4, max.overlaps = 10) +
   theme_minimal() +
-  scale_color_manual(values = c("EM" = "#FFC20A", "Both" = "#0C7BDC"), name = "Mycorrhizal Association") + 
+  scale_color_manual(values = c("AM" = "#dc267f", "DUAL" = "#648fff", "EM" = "#ffb000"), name = "Mycorrhizal Association") + 
   scale_shape_manual(
     values = c("ABAM" = 21, "ABGR" = 22, "ALRU" = 23, "CONU" = 24, "TABR" = 25, "THPL" = 7, "TSHE" = 8), name = "Host Species") +
   labs(title = "Tree Root Traits",
@@ -709,7 +741,13 @@ PCA_plot_root <- ggplot(scores.root, aes(x = PC1, y = PC2, color = Association))
        color = "Host Species") +
   theme(legend.position = "right")  +
   theme(legend.title = element_text(colour="black", size=12, face="bold")) +
-  theme(legend.text = element_text(colour="black", size = 11))
+  theme(legend.text = element_text(colour="black", size = 11)) + 
+  theme(
+    axis.text.x = element_text(size = 11, colour="black"),
+    axis.text.y = element_text(size = 11, colour="black"),
+    axis.title.y = element_text(size = 12, colour="black"),
+    axis.title.x = element_text(size = 12, colour="black"), 
+    strip.text = element_text(size = 12, colour="black"))
 
 PCA_plot_root
 
@@ -721,12 +759,11 @@ top_PC1_root <- loadings.root[order(abs(loadings.root$PC1), decreasing = TRUE), 
 top_PC2_root <- loadings.root[order(abs(loadings.root$PC2), decreasing = TRUE), ][1:3, ]
 
 
-# PC1 is being driven by variation in Specific root length, root N content, and avg root 
-# diameter. 
+# PC1 is being driven by variation in Specific root area, specific root length, and root N content. 
 
-# PC2 is being driven by the d13C, root dry matter content, and root C content. 
+# PC2 is being driven by the d13C, root C content, and d15N.  
 
-## Together the axes explain 59.9% of the variation 
+## Together the axes explain 63.7% of the variation 
 
 
 ### Calculate average PC1 score for each species and plot, compare statistically 
@@ -743,7 +780,7 @@ PC1_root_summary <- PC1_root %>%
   )
 
 # Add in mycorrhizal associations 
-PC1_root_summary$Association <- c("EM", "EM", "Both", "Both", "Both", "Both", "EM")
+PC1_root_summary$Association <- c("EM", "EM", "DUAL", "AM", "DUAL", "AM", "EM")
 
 
 # Test for significant differences between species 
@@ -753,33 +790,53 @@ summary(aov_PC1_root)
 tuk_PC1_root <- TukeyHSD(aov_PC1_root)
 tuk_PC1_root
 
-# Significant differences between species, essentially between 
-# ALRU-ABAM 0.02
-# ALRU-ABGR 0.006
-# CONU-ALRU 0.011
-# TABR-ALRU 0.0006
-# TSHE-ALRU 0.0005
-# THPL-TABR 0.03
-# TSHE-THPL 0.028
 
-# extract pairwise p-values
-tuk_cld_root <- multcompLetters4(aov_PC1_root, tuk_PC1_root)
+# Df Sum Sq Mean Sq F value  Pr(>F)   
+# Host_ID      6  83.55  13.926    4.21 0.00155 **
+#   Residuals   53 175.32   3.308                   
+# ---
+#   Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
 
-# combine letters with summary table
-PC1_root_summary$letters <- tuk_cld_root$Host_ID %>% 
-  as.data.frame() %>% 
-  pull(Letters)
+
+# diff         lwr        upr     p adj
+# ABGR-ABAM -0.669580162 -3.54760394  2.2084436 0.9912283
+# ALRU-ABAM  3.019678077 -0.03292712  6.0722833 0.0543156
+# CONU-ABAM  0.176600441 -2.31584126  2.6690421 0.9999904
+# TABR-ABAM -0.966527325 -3.52726775  1.5942131 0.9069180
+# THPL-ABAM  1.351030424 -1.14141128  3.8434721 0.6441673
+# TSHE-ABAM -0.967531370 -3.45997308  1.5249103 0.8950243
+# ALRU-ABGR  3.689258238  0.31447621  7.0640403 0.0236224
+# CONU-ABGR  0.846180603 -2.03184318  3.7242044 0.9708396
+# TABR-ABGR -0.296947164 -3.23431788  2.6404236 0.9999214
+# THPL-ABGR  2.020610586 -0.85741319  4.8986344 0.3389428
+# TSHE-ABGR -0.297951208 -3.17597499  2.5800726 0.9999096
+# CONU-ALRU -2.843077635 -5.89568283  0.2095276 0.0833810
+# TABR-ALRU -3.986205402 -7.09482638 -0.8775844 0.0043784
+# THPL-ALRU -1.668647652 -4.72125285  1.3839575 0.6351514
+# TSHE-ALRU -3.987209447 -7.03981464 -0.9346042 0.0034935
+# TABR-CONU -1.143127767 -3.70386819  1.4176127 0.8159971
+# THPL-CONU  1.174429983 -1.31801172  3.6668717 0.7755524
+# TSHE-CONU -1.144131811 -3.63657352  1.3483099 0.7958352
+# THPL-TABR  2.317557750 -0.24318268  4.8782982 0.1004278
+# TSHE-TABR -0.001004045 -2.56174447  2.5597364 1.0000000
+# TSHE-THPL -2.318561794 -4.81100350  0.1738799 0.0840558
+
 
 # Visualize 
 PC1_root_plot <- ggplot(PC1_root_summary, aes(x = Host_ID, y = mean_PC1, fill = Association)) +
   geom_col() +
   geom_errorbar(aes(ymin = mean_PC1 - se_PC1, ymax = mean_PC1 + se_PC1), width = 0.2) +
-  theme_bw() +
-  scale_fill_manual(values = c("EM" = "#FFC20A", "Both" = "#0C7BDC"), , name = "Mycorrhizal Association") + 
+  theme_minimal() +
+  scale_fill_manual(values = c("AM" = "#dc267f", "DUAL" = "#648fff", "EM" = "#ffb000"), name = "Mycorrhizal Association") + 
   labs(title = "", x = "", y = "PCA Axis 1 - RES") +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 11)) +
   theme(legend.title = element_text(colour="black", size=12, face="bold")) +
-  theme(legend.text = element_text(colour="black", size = 11))
+  theme(legend.text = element_text(colour="black", size = 11)) + 
+  theme(
+    axis.text.x = element_text(size = 11, colour="black"),
+    axis.text.y = element_text(size = 11, colour="black"),
+    axis.title.y = element_text(size = 12, colour="black"),
+    axis.title.x = element_text(size = 12, colour="black"), 
+    strip.text = element_text(size = 12, colour="black"))
 
 PC1_root_plot
 
@@ -801,7 +858,7 @@ PC2_root_summary <- PC2_root %>%
   )
 
 # Add in mycorrhizal associations 
-PC2_root_summary$Association <- c("EM", "EM", "Both", "Both", "Both", "Both", "EM")
+PC2_root_summary$Association <- c("EM", "EM", "DUAL", "AM", "DUAL", "AM", "EM")
 
 
 # Test for significant differences between species 
@@ -813,16 +870,26 @@ tuk_PC2_root
 
 # NO significant differences between species
 
+# 
+# Df Sum Sq Mean Sq F value Pr(>F)
+# Host_ID      6  13.86   2.310   1.875  0.102
+# Residuals   53  65.29   1.232    
+
 # Visualize 
 PC2_root_plot <- ggplot(PC2_root_summary, aes(x = Host_ID, y = mean_PC2, fill = Association)) +
   geom_col() +
   geom_errorbar(aes(ymin = mean_PC2 - se_PC2, ymax = mean_PC2 + se_PC2), width = 0.2) +
-  theme_bw() +
-  scale_fill_manual(values = c("EM" = "#FFC20A", "Both" = "#0C7BDC"), , name = "Mycorrhizal Association") + 
-  labs(title = "", x = "", y = "PCA Axis 2 - RES") +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 11)) +
+  theme_minimal() +
+  scale_fill_manual(values = c("AM" = "#dc267f", "DUAL" = "#648fff", "EM" = "#ffb000"), name = "Mycorrhizal Association") + 
+  labs(title = "", x = "", y = "PCA Axis 2") +
   theme(legend.title = element_text(colour="black", size=12, face="bold")) +
-  theme(legend.text = element_text(colour="black", size = 11))
+  theme(legend.text = element_text(colour="black", size = 11)) + 
+  theme(
+    axis.text.x = element_text(size = 11, colour="black"),
+    axis.text.y = element_text(size = 11, colour="black"),
+    axis.title.y = element_text(size = 12, colour="black"),
+    axis.title.x = element_text(size = 12, colour="black"), 
+    strip.text = element_text(size = 12, colour="black"))
 
 PC2_root_plot
 
@@ -839,12 +906,12 @@ PC2_root_plot
 # Read back in environmental data for the trees 
 
 x # Right now this is just slope, aspect, and elevation, but will be able to pull in 
- # krieged data when it exists 
+    # krieged data when it exists 
 env <- read.csv("~/Dropbox/WSU/WFDP_Chapter_3_Project/Enviro_Data/WFDP_enviro_data_all.csv")
 
 # subset to data of interest 
 
-env <- select(env, Cell, WFDP_Code, slope, aspect, elevation_m)
+env <- dplyr::select(env, Cell, WFDP_Code, slope, aspect, elevation_m)
 
 tree_PCs_env <- merge(env, alltrees_PCs, by = "WFDP_Code")
 
@@ -901,7 +968,7 @@ slope2
 lm_slope2 <- lm(PC2 ~ slope, data = tree_PCs_env)
 summary(lm_slope2) # SIGNIFICANT
 
-# Adjusted R-squared:  0.05096, p-value: 0.04574
+# Adjusted R-squared:  0.087, p-value: 0.013
 
 
 ## Aspect
@@ -930,30 +997,12 @@ summary(lm_elev2) # NOT SIGNIFICANT
 
 ## RESULT: Only significant relationship was between slope and PC2 values 
 
+# This is just for the overall PCA, could also do it with the separate leaf and root 
+# PCAs if desired 
+
 #################################################################################
 
-############### -- 
-# (4) FUNCTIONAL ANALYSES
-############### -- 
+## Score csvs are saved for leaf and root traits already. 
 
-## Functional analyses using the fundiversity package 
-# following this vignette: https://cran.r-project.org/web/packages/fundiversity/vignettes/fundiversity.html
-############### -- 
-
-# not using any species x site matrix, as I'm not making comparisons between sites (all data are 
-# from WFDP). If I want to in the future I can make comparisons across some category of 
-# environmental variable and perhaps use that as the 'site' 
-
-# Remember that trait values are now scaled, so they can be compared in relation to eachother 
-# but the values themselves do not have the same biological meaning 
-
-# Test FD package 
-disper <- dbFD(traits_tree_sc, calc.FRic = TRUE, calc.CWM = FALSE)
-
-# using just the traits this gives a value to summarize the whole forest 
-
-
-
-
-
+## -- END -- ## 
 
