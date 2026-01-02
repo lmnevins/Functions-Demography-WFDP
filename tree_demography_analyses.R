@@ -48,10 +48,10 @@ growth <- read.csv("stems_WFDP_20250206_trimmed.csv")
 env_data <- read.csv("~/Dropbox/WSU/WFDP_Chapter_3_Project/Enviro_Data/WFDP_enviro_data_all.csv")
 
 # make STEM_TAG column for merging 
-env_data$STEM_TAG <- env_data$WFDP_Code
+env_data$Stem_Tag <- env_data$WFDP_Code
 
 # Trim to just relevant columns 
-env_data <- select(env_data, Cell, EM_Sample_Name, slope, aspect, elevation_m, Association, STEM_TAG)
+env_data <- select(env_data, Cell, EM_Sample_Name, slope, aspect, elevation_m, Association, Stem_Tag)
 
 # Make association a factor 
 env_data$Association <- as.factor(env_data$Association)
@@ -60,7 +60,7 @@ env_data$Association <- as.factor(env_data$Association)
 tree_pc <- read.csv("~/Dropbox/WSU/WFDP_Chapter_3_Project/Trait_Data/PCA/tree_PC_scores.csv")
 
 # make STEM_TAG column for merging 
-tree_pc$STEM_TAG <- tree_pc$WFDP_Code
+tree_pc$Stem_Tag <- tree_pc$WFDP_Code
 
 ##########################################
 # each tree is identified by its WFDP stem_tag. There are three census years - 2011, 
@@ -70,7 +70,7 @@ tree_pc$STEM_TAG <- tree_pc$WFDP_Code
 
 # get starting and ending diameters for all trees
 diams <- growth %>%
-  group_by(STEM_TAG, SPECIES) %>%
+  group_by(Stem_Tag, Species) %>%
   summarise(
     dia_first = DBH[which.min(DBH_DATE)],
     dia_last = DBH[which.max(DBH_DATE)],
@@ -91,15 +91,15 @@ diams <- diams %>%
 # MERGE
 
 # Pair diams with the enviro data according to the tree STEM_TAG
-diam_env <- merge(diams, env_data, by = "STEM_TAG")
+diam_env <- merge(diams, env_data, by = "Stem_Tag")
 
 # Add in the PC values for each tree 
-diam_env_pc <- merge(diam_env, tree_pc, by = "STEM_TAG")
+diam_env_pc <- merge(diam_env, tree_pc, by = "Stem_Tag")
 
 #################################################################################
-#######################
+####################### -- 
 # (1) DATA EXPLORATION
-####################### 
+####################### -- 
 
 # Explore diameter difference relationships with slope, aspect, and elevation 
 
