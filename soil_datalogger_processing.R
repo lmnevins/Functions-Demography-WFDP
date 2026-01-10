@@ -5,10 +5,9 @@
 # Software versions:  R v 4.4.1
 #                     tidyverse v 2.0.0
 #                     dplyr v 1.1.4
-#                     ggplot2 v 3.5.1
-#                     climR v 1.3.0
-#                     geosphere v 1.5.20
-#                     sf v 1.0.19
+#                     ggplot2 v 4.0.1
+#                     myClim v 1.5.0
+#                     sf v 1.0.23
 #                     
 # -----------------------------------------------------------------------------#
 
@@ -23,7 +22,7 @@ library(sf); packageVersion("sf")
 #                               Main workflow                                   #
 #  Process the soil data from all of the dataloggers retrieved from WFDP using  #
 #  the myClim package, specifically designed to process microlimate datalogger  #
-#  data. Create a vector of WFDP boundary.                                      #
+#  data. Prep the datalogger points for spatial analyses.                       #
 #                                                                               #
 #################################################################################
 
@@ -42,13 +41,29 @@ setwd(wd)
 ## Read pre-defined logger with metadata
 # load in two tables - path should work with just the csv of each datafile if the directory is set 
 # to the appropriate file already 
-ft <- read.table("files_table.csv", sep=",", header = T)
-lt <- read.table("localities_table.csv", sep=",", header = T, fill = T)
 
+# Robust read for files_table
+ft <- read.csv("files_table.csv", sep = ",", header = TRUE, stringsAsFactors = FALSE)
 
-tms.m <- mc_read_data(files_table = "files_table.csv",
-                      localities_table = lt,
-                      silent = T)
+# Force important columns to character
+cols_to_char_ft <- c("serial_number", "locality_id")
+existing_cols_ft <- intersect(cols_to_char_ft, names(ft))
+ft[existing_cols_ft] <- lapply(ft[existing_cols_ft], as.character)
+
+# Robust read for localities_table
+lt <- read.csv("localities_table.csv", sep = ",", header = TRUE, fill = TRUE, stringsAsFactors = FALSE)
+
+# Force important columns to character
+cols_to_char_lt <- c("locality_id")
+existing_cols_lt <- intersect(cols_to_char_lt, names(lt))
+lt[existing_cols_lt] <- lapply(lt[existing_cols_lt], as.character)
+
+# Now run myClim
+tms.m <- myClim::mc_read_data(
+  files_table = ft,
+  localities_table = lt,
+  silent = TRUE
+)
 
 # five loggers have errors in the cleaning process, they say they have different values for 
 # moisture, and T1, T2, and T3 at the same time. 
@@ -171,17 +186,92 @@ mc_plot_raster(tms, sensors = c("TMS_moist"))
 # clocking the soil inundation with the fall precipitation 
 
 
+#### -- 
+## Need to calculate volumetric water content from the soil moisture values, which right 
+# now just reflect electrical impulses 
+
+# From NEON data, WFDP has sand:silt:clay 59:33.5:7.5, which almost exactly matches to 
+# 'Sandy Loam A' tested by Wild et al. from TOMST: https://www.sciencedirect.com/science/article/pii/S0168192318304118
+
+localities <- (lt$locality_id)
+
+
+VWC <- myClim::mc_calc_vwc(tms, moist_sensor = "TMS_moist", temp_sensor = "TMS_T1",
+  output_sensor = "VWC_moisture", soiltype = "sandy loam A",
+  localities = localities,
+ frozen2NA = TRUE # if TRUE then VWC values are set to NA when the soil temperature is below 0 °C (default TRUE)
+)
+
+# This created a new VWC_moisture 'logger' that contains the volumetric water content data for 
+
+
+## plot for B03 in the dry southwest corner 
+tms.plot.test <- mc_filter(VWC, localities = "B03")
+
+t <- mc_plot_line(tms.plot.test, sensors = c("TMS_moist", "VWC_moisture"))
+t <- t+ggplot2::scale_x_datetime(date_breaks = "4 weeks", date_labels = "%W")
+t <- t+ggplot2::xlab("week")
+t <- t+ggplot2::aes(size = sensor_name)
+t <- t+ggplot2::scale_size_manual(values = c(0.4 ,0.4))
+t <- t+ggplot2::guides(size = "none")
+t <- t+ggplot2::scale_color_manual(values = c("darkblue", "lightblue"), name = NULL)
+
+t
+
+# Just VWC so I can view the scale better 
+t2 <- mc_plot_line(tms.plot.test, sensors = "VWC_moisture")
+t2 <- t2+ggplot2::scale_x_datetime(date_breaks = "4 weeks", date_labels = "%W")
+t2 <- t2+ggplot2::xlab("week")
+t2 <- t2+ggplot2::aes(size = sensor_name)
+t2 <- t2+ggplot2::scale_size_manual(values = c(0.4 ,0.4))
+t2 <- t2+ggplot2::guides(size = "none")
+t2 <- t2+ggplot2::scale_color_manual(values = c("darkblue"), name = NULL)
+
+t2
+
+
+## plot for N39 in the wettest corner 
+tms.plot.test2 <- mc_filter(VWC, localities = "N39")
+
+u <- mc_plot_line(tms.plot.test2, sensors = c("TMS_moist", "VWC_moisture"))
+u <- u+ggplot2::scale_x_datetime(date_breaks = "4 weeks", date_labels = "%W")
+u <- u+ggplot2::xlab("week")
+u <- u+ggplot2::aes(size = sensor_name)
+u <- u+ggplot2::scale_size_manual(values = c(0.4 ,0.4))
+u <- u+ggplot2::guides(size = "none")
+u <- u+ggplot2::scale_color_manual(values = c("darkblue", "lightblue"), name = NULL)
+
+u
+
+# Just for VWC
+u2 <- mc_plot_line(tms.plot.test2, sensors = "VWC_moisture")
+u2 <- u2+ggplot2::scale_x_datetime(date_breaks = "4 weeks", date_labels = "%W")
+u2 <- u2+ggplot2::xlab("week")
+u2 <- u2+ggplot2::aes(size = sensor_name)
+u2 <- u2+ggplot2::scale_size_manual(values = c(0.4 ,0.4))
+u2 <- u2+ggplot2::guides(size = "none")
+u2 <- u2+ggplot2::scale_color_manual(values = c("darkblue"), name = NULL)
+
+u2
+
+# These checks look good, and the VWC values fall within the expected range for temperate 
+# forest soils, and exhibit expected variation between the dry and wet sides of the plot. 
+
+
 ### data aggregation to get some summaries ###
 
+# Using the VWC myClim object now
+
+
 # with defaults only convert Raw-format  to Agg-format
-tms.ag <- mc_agg(tms.m,fun = NULL, period = NULL)
+tms.ag <- mc_agg(VWC,fun = NULL, period = NULL)
 
 # aggregate to daily mean, range, coverage, and 95 percentile. 
-tms.day <- mc_agg(tms, fun = c("mean", "range", "coverage", "percentile"),
+tms.day <- mc_agg(VWC, fun = c("mean", "range", "coverage", "percentile"),
                   percentiles = 95, period = "day", min_coverage = 0.95)
 
 # aggregate all time-series, return one value per sensor.
-tms.all <- mc_agg(tms, fun = c("mean", "max", "min", "range", "coverage", "percentile"),
+tms.all <- mc_agg(VWC, fun = c("mean", "max", "min", "range", "coverage", "percentile"),
                   percentiles = 95, period = "all", min_coverage = 0.95)
 
 # B03, driest and hottest corner 
@@ -200,10 +290,10 @@ B03 <- tms.all$localities$B03
 # TMS3 range = 41.38
 
 # Soil Moisture 
-# TMS_moist mean = 1632
-# TMS_moist Max = 2434
-# TMS_moist Min = 1051
-# TMS_moist range = 1383
+# VWC_moist mean = 0.23
+# VWC_moist Max = 0.39
+# VWC_moist Min = 0.10
+# VWC_moist range = 0.28
 
 
 # N39, wettest and coolest corner 
@@ -222,17 +312,17 @@ N39 <- tms.all$localities$N39
 # TMS3 range = 36.44
 
 # Soil Moisture 
-# TMS_moist mean = 1574
-# TMS_moist Max = 2706
-# TMS_moist Min = 1144
-# TMS_moist range = 1562
+# VWC_moist mean = 0.23
+# VWC_moist Max = 0.43
+# VWC_moist Min = 0.13
+# VWC_moist range = 0.30
 
 # This generates output plots to the specified directory that shows variation in temp
 # and moisture over the whole study period 
 
 
 # Can subset this to just certain localities or certain sensors of interest 
-mc_plot_loggers(tms, "~/Dropbox/WSU/WFDP_Chapter_3_Project/Dataloggers/")
+mc_plot_loggers(VWC, "~/Dropbox/WSU/WFDP_Chapter_3_Project/Dataloggers/")
 
 
 ################################################################
@@ -252,7 +342,7 @@ loggers <- st_as_sf(logger_data, coords = c("Lon_DD","Lat_DD"), crs = 4326)
 st_crs(loggers)
 st_bbox(loggers)
 
-# In CRS 4236 currently, but I want to reproject to ESG 32610 so I can perform the kriging 
+# In CRS 4236 currently, but I want to reproject to ESG 32610 so I can perform
 # analyses on the same map system as my other points, and the WFDP boundary
 
 
@@ -267,7 +357,7 @@ head(st_coordinates(loggers_utm))
 # TMS_T1 - soil temperature sensor in Tomst TMS (°C)
 # TMS_T2 - surface temperature sensor in Tomst TMS (°C)
 # TMS_T3 - air temperature sensor in Tomst TMS (°C)
-# TMS_moist - soil moisture sensor in Tomst TMS (raw TMS units)
+# VWC_moisture - soil volumetric water content calculated from soil moisture sensor ()
 
 
 # Export the UTM coordinates to read into QGIS
@@ -320,7 +410,7 @@ tms_day_df <- myClim::mc_reshape_long(tms.day)
 # This is excluding height data, but that is just where the different sensors 
 # are located, so that info is readily available 
 tms_all_means <- tms_all_df %>%
-  select(locality_id, sensor_name, value) %>%
+  dplyr::select(locality_id, sensor_name, value) %>%
   pivot_wider(
     names_from = sensor_name,
     values_from = value)
