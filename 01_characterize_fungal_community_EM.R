@@ -238,8 +238,6 @@ rank_names(ps_WFDP_final)
 # taxa names
 taxa_names(ps_WFDP_final)
 
-# ASV table
-otu_table(ps_WFDP_final) %>% View()
 
 # how many sequences observed in each sample?
 seq_counts <- otu_table(ps_WFDP_final) %>% rowSums() %>% as.data.frame()

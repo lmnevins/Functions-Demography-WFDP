@@ -137,6 +137,80 @@ all_traits_growth_env$Species <- as.factor(all_traits_growth_env$Species)
 ## These datafiles now have everything compiled to explore relationships of tree growth with 
 # topographic variables, and the host tree traits 
 
+
+# set colors for hosts 
+# ABAM      ABGR      ALRU        CONU     TABR        THPL       TSHE        
+all_hosts <- c("#9b5fe0", "#16a4d8", "#60dbe8", "#8bd346","#efdf48", "#f9a52F", "#d64e12")
+
+
+# Visualize mean RGR between the focal tree species 
+
+spp_rgr <- ggplot(diams, aes(y = RGR, x = Species, fill = Species)) +
+  geom_boxplot() +
+  geom_point(alpha = 0.6) +
+  theme_bw() +
+  scale_fill_manual(values=all_hosts, 
+                      name="Focal Species",
+                      breaks=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE"),
+                      labels=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE")) +
+  labs(x = "", y = expression("Relative Growth Rate ("*yr^{-1}*")")) +
+  theme(
+    axis.text.x = element_text(size = 11, colour="black"),
+    axis.text.y = element_text(size = 11, colour="black"),
+    axis.title.y = element_text(size = 12, colour="black"),
+    axis.title.x = element_text(size = 12, colour="black")) +
+  theme(legend.text = element_text(size = 11, colour="black"), 
+        legend.title = element_text(size = 12, face = "bold", colour="black")) +
+  theme(legend.position = "right")
+
+spp_rgr
+
+
+#summaries 
+
+rgr_spp_aov <- aov(RGR ~ Species, data = diams)
+
+summary(rgr_spp_aov)
+
+# RGR significantly differs between species 
+# 
+#            Df   Sum Sq   Mean Sq F value   Pr(>F)    
+# Species      6 0.002896 0.0004826   5.468 0.000183 ***
+#   Residuals   53 0.004678 0.0000883                     
+# ---
+#   Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+
+tuk_rgr_spp <- TukeyHSD(rgr_spp_aov)
+tuk_rgr_spp
+
+# 
+# diff           lwr           upr     p adj
+# ABGR-ABAM -6.961907e-03 -0.0218284211  0.0079046072 0.7804697
+# ALRU-ABAM  1.018927e-02 -0.0055790465  0.0259575924 0.4390159
+# CONU-ABAM -4.782161e-03 -0.0176569403  0.0080926176 0.9131870
+# TABR-ABAM -1.486710e-02 -0.0280946736 -0.0016395178 0.0182098  
+# THPL-ABAM  4.128350e-03 -0.0087464287  0.0170031292 0.9556296
+# TSHE-ABAM -4.856806e-03 -0.0177315851  0.0080179728 0.9071380
+# ALRU-ABGR  1.715118e-02 -0.0002813531  0.0345837130 0.0565752
+# CONU-ABGR  2.179746e-03 -0.0126867686  0.0170462597 0.9993210
+# TABR-ABGR -7.905189e-03 -0.0230782612  0.0072678837 0.6850209
+# THPL-ABGR  1.109026e-02 -0.0037762570  0.0259567713 0.2699110
+# TSHE-ABGR  2.105101e-03 -0.0127614134  0.0169716149 0.9994438
+# CONU-ALRU -1.497143e-02 -0.0307397538  0.0007968851 0.0731254
+# TABR-ALRU -2.505637e-02 -0.0411140392 -0.0089986982 0.0002742  
+# THPL-ALRU -6.060923e-03 -0.0218292422  0.0097073967 0.8993434
+# TSHE-ALRU -1.504608e-02 -0.0308143986  0.0007222403 0.0706273
+# TABR-CONU -1.008493e-02 -0.0233125123  0.0031426435 0.2465477
+# THPL-CONU  8.910512e-03 -0.0039642673  0.0217852905 0.3559149
+# TSHE-CONU -7.464482e-05 -0.0129494237  0.0128001341 1.0000000
+# THPL-TABR  1.899545e-02  0.0057678681  0.0322230239 0.0009799  
+# TSHE-TABR  1.001029e-02 -0.0032172884  0.0232378675 0.2544171
+# TSHE-THPL -8.985156e-03 -0.0218599353  0.0038896225 0.3460135
+
+
+# TABR is different from ABAM, ALRU, THPL
+
 #################################################################################
 
 ###################################### -- 
@@ -150,10 +224,6 @@ all_traits_growth_env$Species <- as.factor(all_traits_growth_env$Species)
 # Just using the leaf_growth_env df here because this is just looking at the environmental data, and 
 # nothing related to the PCA results yet 
 
-
-# set colors for hosts 
-                # ABAM      ABGR      ALRU        CONU     TABR        THPL       TSHE        
-all_hosts <- c("#9b5fe0", "#16a4d8", "#60dbe8", "#8bd346","#efdf48", "#f9a52F", "#d64e12")
 
 
 # Exploring separate slopes per species here, because we would expect that growth will vary between species, 

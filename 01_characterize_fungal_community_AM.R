@@ -116,9 +116,9 @@ nsamples(ps_WFDP_AM_final)
 
 asv <- otu_table(ps_WFDP_AM_final) %>% as("matrix") %>% as.data.frame() # convert to matrix before you can convert to data frame
 
-sample_count <- rowSums(asv)
+sample_count <- rowSums(asv) %>% as.data.frame()
 
-sample_count <- as.data.frame(sample_count) #all trees still have some ASV's
+#all trees still have some ASV's
 
 asv_count <- colSums(asv)
 
@@ -206,12 +206,15 @@ traits_WFDP_AM <- matrix %>% dplyr::select(ASV2, Weber_Guild, intraradical_hypha
 write.csv(traits_WFDP_AM, "~/Dropbox/WSU/WFDP_Chapter_3_Project/Fungal_Communities/WFDP_AM_trait_mat.csv")
 
 
-
 # We want these to be the ones that are contained within the final phyloseq object 
 taxa_to_keep <- matrix$ASV2
 
 # Prune taxa from the phyloseq object that are NOT in the taxa_to_keep list 
 ps_WFDP_AM_final <- prune_taxa(taxa_to_keep, ps_WFDP_AM_final)
+
+
+# Remove one tree, W-CONU-13_FWD_filt.fastq.gz, that doesn't have any reads 
+ps_WFDP_AM_final <- subset_samples(ps_WFDP_AM_final, sample_names(ps_WFDP_AM_final) != "W-CONU-13_FWD_filt.fastq.gz")
 
 
 #SAVE THE FINAL RAW DATA PHYLOSEQ OBJECT 
@@ -224,7 +227,7 @@ saveRDS(ps_WFDP_AM_final, file = "~/Dropbox/WSU/WFDP_Chapter_3_Project/Fungal_Co
 # number of taxa - 115
 ntaxa(ps_WFDP_AM_final)
 
-# number of samples - 28
+# number of samples - 27
 nsamples(ps_WFDP_AM_final)
 
 # sample names
@@ -234,7 +237,9 @@ rank_names(ps_WFDP_AM_final)
 taxa_names(ps_WFDP_AM_final)
 
 # ASV table
-otu_table(ps_WFDP_AM_final) %>% View()
+sample_count <- otu_table(ps_WFDP_AM_final)
+
+sample_count <- rowSums(sample_count) %>% as.data.frame()
 
 # how many sequences observed in each sample?
 seq_counts <- otu_table(ps_WFDP_AM_final) %>% rowSums() %>% as.data.frame()
@@ -242,7 +247,7 @@ seq_counts <- otu_table(ps_WFDP_AM_final) %>% rowSums() %>% as.data.frame()
 
 
 # how many times was each taxon observed across the samples?
-otu_table <- otu_table(ps_WFDP_AM_final) %>% colSums()
+otu_table <- otu_table(ps_WFDP_AM_final) %>% colSums() %>% as.data.frame()
 
 
 # how many different samples was each taxon found in?
@@ -301,11 +306,6 @@ saveRDS(ps_WFDP_AM_final, file = "~/Dropbox/WSU/WFDP_Chapter_3_Project/Fungal_Co
 ##################################### --- 
 # (4) VISUALIZE COMMUNITY VARIATION 
 ##################################### --- 
-
-
-## Update all of this to be for the AM data 
-
-
 
 ## Look at ASV taxonomic richness across the samples 
 # Doesn't factor in relative abundance, so using the raw phyloseq object. This is just showing the presence or 
@@ -372,11 +372,8 @@ fam_rel <- fam_rel %>%
   )
 
 
-
-
-
 # Visualize 
-richness_plot_EM <- ggplot(fam_rel,
+richness_plot_AM <- ggplot(fam_rel,
                            aes(x = tree_short, y = rel_asvs, fill = Family)) +
   geom_col(width = 0.9) +
   facet_wrap(~ Host_ID, scales = "free_x") +
@@ -398,7 +395,7 @@ richness_plot_EM <- ggplot(fam_rel,
     panel.spacing = unit(1, "lines"))
 
 
-richness_plot_EM
+richness_plot_AM
 
 
 ## Beta-diversity can be calculated using Aitchison Distance, which is essentially the euclidean
