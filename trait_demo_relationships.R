@@ -72,24 +72,25 @@ growth <- read.csv("stems_WFDP_20250206_trimmed.csv")
 # to calculate how much they have grown. 
 
 
-# get starting and ending diameters for all 60 trees
-diams <- growth %>%
+# get diameters for each of the three timepoints for all 60 trees
+# Some trees have 2010 or 2011 for their first census date 
+rgr_intervals <- growth %>%
+  arrange(Stem_Tag, DBH_DATE) %>%
   group_by(Stem_Tag, Species) %>%
+  mutate(
+    DBH_prev  = lag(DBH),
+    year_prev = lag(DBH_DATE),
+    RGR_interval = (log(DBH) - log(DBH_prev)) / (DBH_DATE - year_prev)
+  ) %>%
+  filter(!is.na(RGR_interval))
+
+# calc mean RGR across both intervals 
+diams <- rgr_intervals %>%
   summarise(
-    dia_first = DBH[which.min(DBH_DATE)],
-    dia_last = DBH[which.max(DBH_DATE)],
-    year_first = min(DBH_DATE),
-    year_last = max(DBH_DATE),
+    mean_RGR = mean(RGR_interval, na.rm = TRUE),
+    n_intervals = n(),
     .groups = "drop"
   )
-
-# get diameter difference between the two time points 
-diams <- diams %>%
-  mutate(diam_diff = dia_last - dia_first)
-
-# Calculate relative growth rate for each tree 
-diams <- diams %>%
-  mutate(RGR = (log(dia_last) - log(dia_first)) / (year_last - year_first))
 
 
 # Add column for WFDP_code to match the PCA data
@@ -139,13 +140,13 @@ all_traits_growth_env$Species <- as.factor(all_traits_growth_env$Species)
 
 
 # set colors for hosts 
-# ABAM      ABGR      ALRU        CONU     TABR        THPL       TSHE        
-all_hosts <- c("#9b5fe0", "#16a4d8", "#60dbe8", "#8bd346","#efdf48", "#f9a52F", "#d64e12")
+                # ABAM      ABGR      ALRU        CONU     TABR        THPL       TSHE        
+all_hosts <- c("#FFD373", "#FD8021", "#E05400", "#0073CC","#003488", "#001D59", "#001524")
 
 
 # Visualize mean RGR between the focal tree species 
 
-spp_rgr <- ggplot(diams, aes(y = RGR, x = Species, fill = Species)) +
+spp_rgr <- ggplot(diams, aes(y = mean_RGR, x = Species, fill = Species)) +
   geom_boxplot() +
   geom_point(alpha = 0.6) +
   theme_bw() +
@@ -153,7 +154,7 @@ spp_rgr <- ggplot(diams, aes(y = RGR, x = Species, fill = Species)) +
                       name="Focal Species",
                       breaks=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE"),
                       labels=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE")) +
-  labs(x = "", y = expression("Relative Growth Rate ("*yr^{-1}*")")) +
+  labs(x = "", y = expression("Mean Relative Growth Rate ("*yr^{-1}*")")) +
   theme(
     axis.text.x = element_text(size = 11, colour="black"),
     axis.text.y = element_text(size = 11, colour="black"),
@@ -168,15 +169,15 @@ spp_rgr
 
 #summaries 
 
-rgr_spp_aov <- aov(RGR ~ Species, data = diams)
+rgr_spp_aov <- aov(mean_RGR ~ Species, data = diams)
 
 summary(rgr_spp_aov)
 
 # RGR significantly differs between species 
 # 
-#            Df   Sum Sq   Mean Sq F value   Pr(>F)    
-# Species      6 0.002896 0.0004826   5.468 0.000183 ***
-#   Residuals   53 0.004678 0.0000883                     
+#           Df   Sum Sq   Mean Sq F value         Pr(>F)    
+#     Species      6 0.002929 0.0004882   5.553 0.00016 ***
+#   Residuals   53 0.004660 0.0000879                    
 # ---
 #   Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
 
@@ -186,27 +187,27 @@ tuk_rgr_spp
 
 # 
 # diff           lwr           upr     p adj
-# ABGR-ABAM -6.961907e-03 -0.0218284211  0.0079046072 0.7804697
-# ALRU-ABAM  1.018927e-02 -0.0055790465  0.0259575924 0.4390159
-# CONU-ABAM -4.782161e-03 -0.0176569403  0.0080926176 0.9131870
-# TABR-ABAM -1.486710e-02 -0.0280946736 -0.0016395178 0.0182098  
-# THPL-ABAM  4.128350e-03 -0.0087464287  0.0170031292 0.9556296
-# TSHE-ABAM -4.856806e-03 -0.0177315851  0.0080179728 0.9071380
-# ALRU-ABGR  1.715118e-02 -0.0002813531  0.0345837130 0.0565752
-# CONU-ABGR  2.179746e-03 -0.0126867686  0.0170462597 0.9993210
-# TABR-ABGR -7.905189e-03 -0.0230782612  0.0072678837 0.6850209
-# THPL-ABGR  1.109026e-02 -0.0037762570  0.0259567713 0.2699110
-# TSHE-ABGR  2.105101e-03 -0.0127614134  0.0169716149 0.9994438
-# CONU-ALRU -1.497143e-02 -0.0307397538  0.0007968851 0.0731254
-# TABR-ALRU -2.505637e-02 -0.0411140392 -0.0089986982 0.0002742  
-# THPL-ALRU -6.060923e-03 -0.0218292422  0.0097073967 0.8993434
-# TSHE-ALRU -1.504608e-02 -0.0308143986  0.0007222403 0.0706273
-# TABR-CONU -1.008493e-02 -0.0233125123  0.0031426435 0.2465477
-# THPL-CONU  8.910512e-03 -0.0039642673  0.0217852905 0.3559149
-# TSHE-CONU -7.464482e-05 -0.0129494237  0.0128001341 1.0000000
-# THPL-TABR  1.899545e-02  0.0057678681  0.0322230239 0.0009799  
-# TSHE-TABR  1.001029e-02 -0.0032172884  0.0232378675 0.2544171
-# TSHE-THPL -8.985156e-03 -0.0218599353  0.0038896225 0.3460135
+# ABGR-ABAM -6.952969e-03 -0.0217905642  0.0078846261 0.7799461
+# ALRU-ABAM  1.022609e-02 -0.0055115590  0.0259637335 0.4322334
+# CONU-ABAM -4.838083e-03 -0.0176878172  0.0080116516 0.9079049
+# TABR-ABAM -1.493780e-02 -0.0281396491 -0.0017359550 0.0170683
+# THPL-ABAM  4.200038e-03 -0.0086496967  0.0170497720 0.9514257
+# TSHE-ABAM -4.903199e-03 -0.0177529337  0.0079465350 0.9024389
+# ALRU-ABGR  1.717906e-02 -0.0002195662  0.0345776789 0.0550804
+# CONU-ABGR  2.114886e-03 -0.0127227089  0.0169524814 0.9994224
+# TABR-ABGR -7.984833e-03 -0.0231283902  0.0071587242 0.6729593
+# THPL-ABGR  1.115301e-02 -0.0036845885  0.0259906019 0.2616727
+# TSHE-ABGR  2.049770e-03 -0.0127878255  0.0168873649 0.9995173
+# CONU-ALRU -1.506417e-02 -0.0308018163  0.0006734762 0.0690773
+# TABR-ALRU -2.516389e-02 -0.0411903238 -0.0091374548 0.0002476
+# THPL-ALRU -6.026050e-03 -0.0217636959  0.0097115966 0.9009760
+# TSHE-ALRU -1.512929e-02 -0.0308669329  0.0006083596 0.0669937
+# TABR-CONU -1.009972e-02 -0.0233015663  0.0031021278 0.2429691
+# THPL-CONU  9.038120e-03 -0.0038116139  0.0218878548 0.3367882
+# TSHE-CONU -6.511657e-05 -0.0129148509  0.0127846178 1.0000000
+# THPL-TABR  1.913784e-02  0.0059359926  0.0323396868 0.0008547
+# TSHE-TABR  1.003460e-02 -0.0031672444  0.0232364498 0.2497722
+# TSHE-THPL -9.103237e-03 -0.0219529714  0.0037464973 0.3283815
 
 
 # TABR is different from ABAM, ALRU, THPL
@@ -232,181 +233,10 @@ tuk_rgr_spp
 # between growth and the topographic variable. 
 
 
-# Explore diameter difference relationships
-
-## Slope
-slope <- ggplot(leaf_growth_env, aes(x = slope, y = diam_diff, colour = Species)) +
-  geom_point(alpha = 1, cex = 2.5) +
-  geom_smooth(method = "lm", se = TRUE, color = "black") +
-  facet_wrap(~ Species, scales = "free_x") +
-  theme_bw() +
-  scale_colour_manual(values=all_hosts, 
-                      name="Species",
-                      breaks=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE"),
-                      labels=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE")) +
-  labs(x = "Slope", y = expression("Diameter Difference (mm)")) +
-  theme(
-    axis.text.x = element_text(size = 11, colour="black"),
-    axis.text.y = element_text(size = 11, colour="black"),
-    axis.title.y = element_text(size = 12, colour="black"),
-    axis.title.x = element_text(size = 12, colour="black"), 
-    strip.text = element_text(size = 12, colour="black")) +
-  theme(legend.text = element_text(size = 11, colour="black"), 
-        legend.title = element_text(size = 12, face = "bold", colour="black")) +
-  theme(legend.position = "none")
-
-slope
-
-# test relationships 
-lm_slope <- lm(diam_diff ~ slope * Species, data = leaf_growth_env)
-
-emtrends(lm_slope, ~ Species, var = "slope") %>% test(adjust = "fdr")
-# This gets separate p-values for the relationship for each species 
-# P-values were adjusted for multiple testing using the Benjamini–Hochberg 
-# false discovery rate procedure.
-
-# 
-# Species slope.trend    SE df t.ratio p.value
-# ABAM        0.03774 0.308 46   0.122  0.9893
-# ABGR       -0.21533 1.000 46  -0.215  0.9893
-# ALRU       -0.95355 0.641 46  -1.488  0.5027
-# CONU       -0.00788 0.587 46  -0.013  0.9893
-# TABR        0.16403 0.287 46   0.571  0.9893
-# THPL        0.39178 0.219 46   1.790  0.5027
-# TSHE       -0.16793 0.410 46  -0.409  0.9893
-
-# No species has a significant relationship between slope and diam diff
-
-
-anova(lm_slope)
-
-# Response: diam_diff
-# Df Sum Sq Mean Sq F value    Pr(>F)    
-# slope          1  3.955  3.9549  3.5823 0.0646994 .  
-# Species        6 32.372  5.3953  4.8870 0.0006143 ***
-# slope:Species  6  5.622  0.9370  0.8487 0.5393464    
-# Residuals     46 50.784  1.1040                      
-# ---
-#   Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
-
-
-# Diam diff is different between species, but slope is not what is driving this. 
-
-
-
-## Aspect
-aspect <- ggplot(leaf_growth_env, aes(x = aspect, y = diam_diff, colour = Species)) +
-  geom_point(alpha = 1, cex = 2.5) +
-  geom_smooth(method = "lm", se = TRUE, color = "black") +
-  facet_wrap(~ Species, scales = "free_x") +
-  theme_bw() +
-  scale_colour_manual(values=all_hosts, 
-                      name="Species",
-                      breaks=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE"),
-                      labels=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE")) +
-  labs(x = "Aspect", y = expression("Diameter Difference (mm)")) +
-  theme(
-    axis.text.x = element_text(size = 11, colour="black"),
-    axis.text.y = element_text(size = 11, colour="black"),
-    axis.title.y = element_text(size = 12, colour="black"),
-    axis.title.x = element_text(size = 12, colour="black"), 
-    strip.text = element_text(size = 12, colour="black")) +
-  theme(legend.text = element_text(size = 11, colour="black"), 
-        legend.title = element_text(size = 12, face = "bold", colour="black")) +
-  theme(legend.position = "none")
-
-aspect
-
-# test relationships 
-lm_aspect <- lm(diam_diff ~ aspect * Species, data = leaf_growth_env)
-
-emtrends(lm_aspect, ~ Species, var = "aspect") %>% test(adjust = "fdr")
-
-# Species aspect.trend      SE df t.ratio p.value
-# ABAM       -2.74e-03 0.01100 46  -0.249  0.9945
-# ABGR       -1.24e-02 0.01100 46  -1.120  0.9945
-# ALRU       -3.47e-03 0.02010 46  -0.173  0.9945
-# CONU        4.51e-05 0.00650 46   0.007  0.9945
-# TABR        9.66e-03 0.01650 46   0.584  0.9945
-# THPL        2.05e-03 0.00362 46   0.567  0.9945
-# TSHE       -2.57e-03 0.01390 46  -0.185  0.9945
-
-# No species has a significant relationship between aspect and diam diff
-
-
-anova(lm_aspect)
-
-
-# Response: diam_diff
-# Df Sum Sq Mean Sq F value    Pr(>F)    
-# aspect          1  0.078  0.0775  0.0649 0.8000355    
-# Species         6 35.297  5.8828  4.9257 0.0005772 ***
-#   aspect:Species  6  2.421  0.4035  0.3378 0.9133168    
-# Residuals      46 54.938  1.1943                      
-# ---
-#   Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
-
-# Diam diff is different between species, but aspect is not what is driving this. 
-
-
-## Elevation
-elev <- ggplot(leaf_growth_env, aes(x = elevation_m, y = diam_diff, colour = Species)) +
-  geom_point(alpha = 1, cex = 2.5) +
-  geom_smooth(method = "lm", se = TRUE, color = "black") +
-  facet_wrap(~ Species, scales = "free_x") +
-  theme_bw() +
-  scale_colour_manual(values=all_hosts, 
-                      name="Species",
-                      breaks=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE"),
-                      labels=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE")) +
-  labs(x = "Elevation (m)", y = expression("Diameter Difference (mm)")) +
-  theme(
-    axis.text.x = element_text(size = 11, colour="black"),
-    axis.text.y = element_text(size = 11, colour="black"),
-    axis.title.y = element_text(size = 12, colour="black"),
-    axis.title.x = element_text(size = 12, colour="black"), 
-    strip.text = element_text(size = 12, colour="black")) +
-  theme(legend.text = element_text(size = 11, colour="black"), 
-        legend.title = element_text(size = 12, face = "bold", colour="black")) +
-  theme(legend.position = "none")
-
-elev
-
-# test relationships 
-lm_elev <- lm(diam_diff ~ elevation_m * Species, data = leaf_growth_env)
-
-emtrends(lm_elev, ~ Species, var = "elevation_m") %>% test(adjust = "fdr")
-
-# Species elevation_m.trend     SE df t.ratio p.value
-# ABAM            -8.49e-02 0.0388 46  -2.186  0.2373
-# ABGR             2.48e-02 0.0493 46   0.503  1.0000
-# ALRU            -2.14e-06 0.0580 46   0.000  1.0000
-# CONU             1.30e-03 0.0599 46   0.022  1.0000
-# TABR             1.45e-02 0.0465 46   0.312  1.0000
-# THPL             6.55e-02 0.0443 46   1.479  0.5110
-# TSHE             1.42e-03 0.0363 46   0.039  1.0000
-
-# No species has a significant relationship between elevation and diam diff
-
-anova(lm_elev)
-
-# Response: diam_diff
-# Df Sum Sq Mean Sq F value    Pr(>F)    
-# elevation_m          1  1.235  1.2345  1.1472 0.2897248    
-# Species              6 34.126  5.6876  5.2853 0.0003259 ***
-#   elevation_m:Species  6  7.871  1.3118  1.2190 0.3139835    
-# Residuals           46 49.502  1.0761                      
-# ---
-#   Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
-
-
-# Diam diff is different between species, but elevation is not what is driving this. 
-
-
 ### Explore RGR relationships 
 
 ## Slope
-slope2 <- ggplot(leaf_growth_env, aes(x = slope, y = RGR, colour = Species)) +
+slope2 <- ggplot(leaf_growth_env, aes(x = slope, y = mean_RGR, colour = Species)) +
   geom_point(alpha = 1, cex = 2.5) +
   geom_smooth(method = "lm", se = TRUE, color = "black") +
   facet_wrap(~ Species, scales = "free_x") +
@@ -415,7 +245,7 @@ slope2 <- ggplot(leaf_growth_env, aes(x = slope, y = RGR, colour = Species)) +
                       name="Species",
                       breaks=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE"),
                       labels=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE")) +
-  labs(x = "Slope", y = expression("Relative Growth Rate ("*yr^{-1}*")")) +
+  labs(x = "Slope", y = expression("Mean Relative Growth Rate ("*yr^{-1}*")")) +
   theme(
     axis.text.x = element_text(size = 11, colour="black"),
     axis.text.y = element_text(size = 11, colour="black"),
@@ -429,36 +259,36 @@ slope2 <- ggplot(leaf_growth_env, aes(x = slope, y = RGR, colour = Species)) +
 slope2
 
 # test relationships 
-lm_slope2 <- lm(RGR ~ slope * Species, data = leaf_growth_env)
+lm_slope2 <- lm(mean_RGR ~ slope * Species, data = leaf_growth_env)
 
 emtrends(lm_slope2, ~ Species, var = "slope") %>% test(adjust = "fdr")
 
 
 # Species slope.trend      SE df t.ratio p.value
-# ABAM       0.000472 0.00275 46   0.172  0.9601
-# ABGR       0.000888 0.00895 46   0.099  0.9601
-# ALRU      -0.013852 0.00572 46  -2.423  0.1355
-# CONU      -0.000263 0.00524 46  -0.050  0.9601
-# TABR       0.000970 0.00256 46   0.379  0.9601
-# THPL       0.002017 0.00195 46   1.033  0.9601
-# TSHE       0.001428 0.00366 46   0.390  0.9601
+# ABAM       0.000417 0.00275 46   0.152  0.9599
+# ABGR       0.000810 0.00894 46   0.091  0.9599
+# ALRU      -0.013660 0.00571 46  -2.391  0.1467
+# CONU      -0.000265 0.00524 46  -0.051  0.9599
+# TABR       0.000967 0.00256 46   0.378  0.9599
+# THPL       0.002027 0.00195 46   1.039  0.9599
+# TSHE       0.001395 0.00366 46   0.381  0.9599
 
 
 anova(lm_slope2)
 
-# Response: RGR
+# Response: mean_RGR
 # Df    Sum Sq    Mean Sq F value    Pr(>F)    
-# slope          1 0.0001545 0.00015448  1.7594 0.1912414    
-# Species        6 0.0027638 0.00046063  5.2464 0.0003465 ***
-#   slope:Species  6 0.0006166 0.00010276  1.1704 0.3385485    
-# Residuals     46 0.0040388 0.00008780                      
+# slope          1 0.0001564 0.00015639  1.7828 0.1883771    
+# Species        6 0.0027952 0.00046587  5.3106 0.0003132 ***
+#   slope:Species  6 0.0006022 0.00010036  1.1441 0.3525130    
+# Residuals     46 0.0040353 0.00008772                      
 # ---
 #   Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
 
 
 
 ## Aspect
-aspect2 <- ggplot(leaf_growth_env, aes(x = aspect, y = RGR, colour = Species)) +
+aspect2 <- ggplot(leaf_growth_env, aes(x = aspect, y = mean_RGR, colour = Species)) +
   geom_point(alpha = 1, cex = 2.5) +
   geom_smooth(method = "lm", se = TRUE, color = "black") +
   facet_wrap(~ Species, scales = "free_x") +
@@ -467,7 +297,7 @@ aspect2 <- ggplot(leaf_growth_env, aes(x = aspect, y = RGR, colour = Species)) +
                       name="Species",
                       breaks=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE"),
                       labels=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE")) +
-  labs(x = "Aspect", y = expression("Relative Growth Rate ("*yr^{-1}*")")) +
+  labs(x = "Aspect", y = expression("Mean Relative Growth Rate ("*yr^{-1}*")")) +
   theme(
     axis.text.x = element_text(size = 11, colour="black"),
     axis.text.y = element_text(size = 11, colour="black"),
@@ -482,35 +312,35 @@ aspect2
 
 
 # test relationships 
-lm_aspect2 <- lm(RGR ~ aspect * Species, data = leaf_growth_env)
+lm_aspect2 <- lm(mean_RGR ~ aspect * Species, data = leaf_growth_env)
 
 emtrends(lm_aspect2, ~ Species, var = "aspect") %>% test(adjust = "fdr")
 
 
 # Species aspect.trend       SE df t.ratio p.value
-# ABAM       -7.42e-05 9.97e-05 46  -0.744  0.9214
-# ABGR       -4.77e-05 1.00e-04 46  -0.475  0.9214
-# ALRU        1.93e-05 1.83e-04 46   0.105  0.9214
-# CONU        1.46e-05 5.91e-05 46   0.247  0.9214
-# TABR        6.85e-05 1.50e-04 46   0.456  0.9214
-# THPL        1.82e-05 3.29e-05 46   0.551  0.9214
-# TSHE        1.25e-05 1.26e-04 46   0.099  0.9214
+# ABAM       -6.95e-05 9.96e-05 46  -0.697  0.9126
+# ABGR       -4.72e-05 1.00e-04 46  -0.471  0.9126
+# ALRU        2.47e-05 1.82e-04 46   0.135  0.9126
+# CONU        1.37e-05 5.91e-05 46   0.233  0.9126
+# TABR        7.05e-05 1.50e-04 46   0.469  0.9126
+# THPL        1.77e-05 3.29e-05 46   0.537  0.9126
+# TSHE        1.39e-05 1.26e-04 46   0.110  0.9126
 
 
 anova(lm_aspect2)
 
-# Response: RGR
+# Response: mean_RGR
 # Df    Sum Sq    Mean Sq F value    Pr(>F)    
-# aspect          1 0.0000017 0.00000171  0.0174 0.8957652    
-# Species         6 0.0029051 0.00048418  4.9033 0.0005984 ***
-#   aspect:Species  6 0.0001246 0.00002076  0.2102 0.9717906    
-# Residuals      46 0.0045423 0.00009875                      
+# aspect          1 0.0000018 0.00000181  0.0184 0.8926854    
+# Species         6 0.0029389 0.00048981  4.9722 0.0005358 ***
+#   aspect:Species  6 0.0001169 0.00001948  0.1978 0.9758017    
+# Residuals      46 0.0045315 0.00009851                      
 # ---
 #   Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
 
 
 ## Elevation
-elev2 <- ggplot(leaf_growth_env, aes(x = elevation_m, y = RGR, colour = Species)) +
+elev2 <- ggplot(leaf_growth_env, aes(x = elevation_m, y = mean_RGR, colour = Species)) +
   geom_point(alpha = 1, cex = 2.5) +
   geom_smooth(method = "lm", se = TRUE, color = "black") +
   facet_wrap(~ Species, scales = "free_x") +
@@ -519,7 +349,7 @@ elev2 <- ggplot(leaf_growth_env, aes(x = elevation_m, y = RGR, colour = Species)
                       name="Species",
                       breaks=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE"),
                       labels=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE")) +
-  labs(x = "Elevation (m)", y = expression("Relative Growth Rate ("*yr^{-1}*")")) +
+  labs(x = "Elevation (m)", y = expression("Mean Relative Growth Rate ("*yr^{-1}*")")) +
   theme(
     axis.text.x = element_text(size = 11, colour="black"),
     axis.text.y = element_text(size = 11, colour="black"),
@@ -534,27 +364,27 @@ elev2
 
 
 # test relationships 
-lm_elev2 <- lm(RGR ~ elevation_m * Species, data = leaf_growth_env)
+lm_elev2 <- lm(mean_RGR ~ elevation_m * Species, data = leaf_growth_env)
 
 emtrends(lm_elev2, ~ Species, var = "elevation_m") %>% test(adjust = "fdr")
 
 # Species elevation_m.trend       SE df t.ratio p.value
-# ABAM            -6.85e-04 0.000357 46  -1.920  0.4277
-# ABGR             1.55e-04 0.000452 46   0.343  0.9876
-# ALRU            -3.65e-04 0.000533 46  -0.685  0.9876
-# CONU             8.63e-06 0.000550 46   0.016  0.9876
-# TABR             8.41e-05 0.000427 46   0.197  0.9876
-# THPL             4.49e-04 0.000406 46   1.105  0.9616
-# TSHE            -5.96e-05 0.000333 46  -0.179  0.9876
+# ABAM            -6.68e-04 0.000356 46  -1.874  0.4714
+# ABGR             1.54e-04 0.000452 46   0.340  0.9988
+# ALRU            -3.75e-04 0.000532 46  -0.704  0.9988
+# CONU            -8.62e-07 0.000550 46  -0.002  0.9988
+# TABR             8.30e-05 0.000427 46   0.195  0.9988
+# THPL             4.52e-04 0.000406 46   1.113  0.9507
+# TSHE            -5.75e-05 0.000333 46  -0.173  0.9988
 
 anova(lm_elev2)
 
-# Response: RGR
+# Response: mean_RGR
 # Df    Sum Sq    Mean Sq F value    Pr(>F)    
-# elevation_m          1 0.0001646 0.00016458  1.8142 0.1846000    
-# Species              6 0.0027549 0.00045915  5.0614 0.0004646 ***
-#   elevation_m:Species  6 0.0004812 0.00008020  0.8840 0.5142559    
-# Residuals           46 0.0041730 0.00009072                      
+# elevation_m          1 0.0001623 0.00016235  1.7918 0.1872884    
+# Species              6 0.0027895 0.00046492  5.1312 0.0004158 ***
+#   elevation_m:Species  6 0.0004694 0.00007823  0.8634 0.5288464    
+# Residuals           46 0.0041679 0.00009061                      
 # ---
 #   Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
 
@@ -569,387 +399,12 @@ anova(lm_elev2)
 # (3) GROWTH RELATIONSHIPS TO TRAIT PCA VALUES
 ################################################ -- 
 
-
-# Explore diameter difference relationships with the PC1 and PC2 values for the leaf and 
-# root trait PCAs
-
-
-## LEAF TRAITS
-
-# PC1 - All species together 
-leaf_PC1_diam_all <- ggplot(leaf_growth_env, aes(x = PC1, y = diam_diff, colour = Species)) +
-  geom_point(alpha = 1, cex = 2.5) +
-  geom_smooth(method = "lm", se = TRUE, color = "black") +
-  theme_bw() +
-  scale_colour_manual(values=all_hosts, 
-                      name="Species",
-                      breaks=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE"),
-                      labels=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE")) +
-  labs(x = "Leaf Trait PC1 Value", y = "Diameter Difference (mm)") +
-  theme(
-    axis.text.x = element_text(size = 11, colour="black"),
-    axis.text.y = element_text(size = 11, colour="black"),
-    axis.title.y = element_text(size = 12, colour="black"),
-    axis.title.x = element_text(size = 12, colour="black"), 
-    strip.text = element_text(size = 12, colour="black")) +
-  theme(legend.text = element_text(size = 11, colour="black"), 
-        legend.title = element_text(size = 12, face = "bold", colour="black")) +
-  theme(legend.position = "none")
-
-leaf_PC1_diam_all
-
-
-# test relationships 
-lm_leaf_PC1_diam_all <- lm(diam_diff ~ PC1, data = leaf_growth_env)
-
-summary(lm_leaf_PC1_diam_all)
-
-
-# Multiple R-squared:  0.01721,	Adjusted R-squared:  0.0002624 
-# F-statistic: 1.015 on 1 and 58 DF,  p-value: 0.3178
-
-# No significant relationship for the species all together 
-
-
-# PC1 - For separate species
-leaf_PC1_diam_sep <- ggplot(leaf_growth_env, aes(x = PC1, y = diam_diff, colour = Species)) +
-  geom_point(alpha = 1, cex = 2.5) +
-  geom_smooth(method = "lm", se = TRUE, color = "black") +
-  facet_wrap(~ Species, scales = "free_x") +
-  theme_bw() +
-  scale_colour_manual(values=all_hosts, 
-                      name="Species",
-                      breaks=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE"),
-                      labels=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE")) +
-  labs(x = "Leaf Trait PC1 Value", y = "Diameter Difference (mm)") +
-  theme(
-    axis.text.x = element_text(size = 11, colour="black"),
-    axis.text.y = element_text(size = 11, colour="black"),
-    axis.title.y = element_text(size = 12, colour="black"),
-    axis.title.x = element_text(size = 12, colour="black"), 
-    strip.text = element_text(size = 12, colour="black")) +
-  theme(legend.text = element_text(size = 11, colour="black"), 
-        legend.title = element_text(size = 12, face = "bold", colour="black")) +
-  theme(legend.position = "right")
-
-leaf_PC1_diam_sep
-
-
-# test relationships 
-lm_leaf_PC1_diam_sep <- lm(diam_diff ~ PC1 * Species, data = leaf_growth_env)
-
-emtrends(lm_leaf_PC1_diam_sep, ~ Species, var = "PC1") %>% test(adjust = "fdr")
-
-# Species PC1.trend    SE df t.ratio p.value
-# ABAM      -0.6960 0.562 46  -1.238  0.4818
-# ABGR      -0.8160 0.692 46  -1.179  0.4818
-# ALRU       2.8649 1.240 46   2.302  0.1813
-# CONU       0.1687 0.578 46   0.292  0.8089
-# TABR      -0.2465 0.316 46  -0.780  0.6150
-# THPL       0.0841 0.346 46   0.243  0.8089
-# TSHE       0.4662 0.422 46   1.104  0.4818
-
-# No significant relationships for any species 
-
-anova(lm_leaf_PC1_diam_sep)
-
-# 
-# Response: diam_diff
-# Response: diam_diff
-# Df Sum Sq Mean Sq F value    Pr(>F)    
-# PC1          1  1.596  1.5957  1.5627 0.2175881    
-# Species      6 33.773  5.6289  5.5127 0.0002283 ***
-#   PC1:Species  6 10.394  1.7324  1.6967 0.1433046    
-# Residuals   46 46.969  1.0211                      
-# ---
-#   Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
-
-
-# Diam diff is different between species, but their leaf PC1 values are not what is driving this. 
-
-
-## PC2 - All species together 
-leaf_PC2_diam_all <- ggplot(leaf_growth_env, aes(x = PC2, y = diam_diff, colour = Species)) +
-  geom_point(alpha = 1, cex = 2.5) +
-  geom_smooth(method = "lm", se = TRUE, color = "black") +
-  theme_bw() +
-  scale_colour_manual(values=all_hosts, 
-                      name="Species",
-                      breaks=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE"),
-                      labels=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE")) +
-  labs(x = "Leaf Trait PC2 Value", y = "Diameter Difference (mm)") +
-  theme(
-    axis.text.x = element_text(size = 11, colour="black"),
-    axis.text.y = element_text(size = 11, colour="black"),
-    axis.title.y = element_text(size = 12, colour="black"),
-    axis.title.x = element_text(size = 12, colour="black"), 
-    strip.text = element_text(size = 12, colour="black")) +
-  theme(legend.text = element_text(size = 11, colour="black"), 
-        legend.title = element_text(size = 12, face = "bold", colour="black")) +
-  theme(legend.position = "right")
-
-leaf_PC2_diam_all
-
-
-# test relationships 
-lm_leaf_PC2_diam_all <- lm(diam_diff ~ PC2, data = leaf_growth_env)
-
-summary(lm_leaf_PC2_diam_all)
-
-# Multiple R-squared:  0.03057,	Adjusted R-squared:  0.01385 
-# F-statistic: 1.829 on 1 and 58 DF,  p-value: 0.1815
-
-# No significant relationship for the species all together 
-
-
-# PC2 - For separate species
-leaf_PC2_diam_sep <- ggplot(leaf_growth_env, aes(x = PC2, y = diam_diff, colour = Species)) +
-  geom_point(alpha = 1, cex = 2.5) +
-  geom_smooth(method = "lm", se = TRUE, color = "black") +
-  facet_wrap(~ Species, scales = "free_x") +
-  theme_bw() +
-  scale_colour_manual(values=all_hosts, 
-                      name="Species",
-                      breaks=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE"),
-                      labels=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE")) +
-  labs(x = "Leaf Trait PC2 Value", y = "Diameter Difference (mm)") +
-  theme(
-    axis.text.x = element_text(size = 11, colour="black"),
-    axis.text.y = element_text(size = 11, colour="black"),
-    axis.title.y = element_text(size = 12, colour="black"),
-    axis.title.x = element_text(size = 12, colour="black"), 
-    strip.text = element_text(size = 12, colour="black")) +
-  theme(legend.text = element_text(size = 11, colour="black"), 
-        legend.title = element_text(size = 12, face = "bold", colour="black")) +
-  theme(legend.position = "right")
-
-leaf_PC2_diam_sep
-
-
-# test relationships 
-lm_leaf_PC2_diam_sep <- lm(diam_diff ~ PC2 * Species, data = leaf_growth_env)
-
-emtrends(lm_leaf_PC2_diam_sep, ~ Species, var = "PC2") %>% test(adjust = "fdr")
-
-# Species PC2.trend    SE df t.ratio p.value
-# ABAM       0.4626 0.606 46   0.764  0.8833
-# ABGR       0.2071 1.400 46   0.148  0.8833
-# ALRU      -1.0243 1.130 46  -0.906  0.8833
-# CONU      -0.3234 0.695 46  -0.465  0.8833
-# TABR      -0.2015 0.533 46  -0.378  0.8833
-# THPL       0.0838 0.507 46   0.165  0.8833
-# TSHE      -0.2193 0.577 46  -0.380  0.8833
-
-# No significant relationships for any species 
-
-anova(lm_leaf_PC2_diam_sep)
-
-# 
-# Response: diam_diff
-# Df Sum Sq Mean Sq F value   Pr(>F)   
-# PC2          1  2.834  2.8344  2.3690 0.130615   
-# Species      6 32.614  5.4357  4.5432 0.001073 **
-#   PC2:Species  6  2.247  0.3745  0.3130 0.926966   
-# Residuals   46 55.037  1.1964                    
-# ---
-  # Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
-
-
-# Diam diff is different between species, but their leaf PC2 values are not what is driving this. 
-
-
-
-## ROOT TRAITS
-
-# PC1 - All species together 
-root_PC1_diam_all <- ggplot(root_growth_env, aes(x = PC1, y = diam_diff, colour = Species)) +
-  geom_point(alpha = 1, cex = 2.5) +
-  geom_smooth(method = "lm", se = TRUE, color = "black") +
-  theme_bw() +
-  scale_colour_manual(values=all_hosts, 
-                      name="Species",
-                      breaks=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE"),
-                      labels=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE")) +
-  labs(x = "Root Trait PC1 Value", y = "Diameter Difference (mm)") +
-  theme(
-    axis.text.x = element_text(size = 11, colour="black"),
-    axis.text.y = element_text(size = 11, colour="black"),
-    axis.title.y = element_text(size = 12, colour="black"),
-    axis.title.x = element_text(size = 12, colour="black"), 
-    strip.text = element_text(size = 12, colour="black")) +
-  theme(legend.text = element_text(size = 11, colour="black"), 
-        legend.title = element_text(size = 12, face = "bold", colour="black")) +
-  theme(legend.position = "right")
-
-root_PC1_diam_all
-
-
-# test relationships 
-lm_root_PC1_diam_all <- lm(diam_diff ~ PC1, data = root_growth_env)
-
-summary(lm_root_PC1_diam_all)
-
-
-# Multiple R-squared:  0.02163,	Adjusted R-squared:  0.004765 
-# F-statistic: 1.282 on 1 and 58 DF,  p-value: 0.2621
-
-# No significant relationship for the species all together 
-
-
-# PC1 - For separate species
-root_PC1_diam_sep <- ggplot(root_growth_env, aes(x = PC1, y = diam_diff, colour = Species)) +
-  geom_point(alpha = 1, cex = 2.5) +
-  geom_smooth(method = "lm", se = TRUE, color = "black") +
-  facet_wrap(~ Species, scales = "free_x") +
-  theme_bw() +
-  scale_colour_manual(values=all_hosts, 
-                      name="Species",
-                      breaks=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE"),
-                      labels=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE")) +
-  labs(x = "Root Trait PC1 Value", y = "Diameter Difference (mm)") +
-  theme(
-    axis.text.x = element_text(size = 11, colour="black"),
-    axis.text.y = element_text(size = 11, colour="black"),
-    axis.title.y = element_text(size = 12, colour="black"),
-    axis.title.x = element_text(size = 12, colour="black"), 
-    strip.text = element_text(size = 12, colour="black")) +
-  theme(legend.text = element_text(size = 11, colour="black"), 
-        legend.title = element_text(size = 12, face = "bold", colour="black")) +
-  theme(legend.position = "right")
-
-root_PC1_diam_sep
-
-
-# test relationships 
-lm_root_PC1_diam_sep <- lm(diam_diff ~ PC1 * Species, data = root_growth_env)
-
-emtrends(lm_root_PC1_diam_sep, ~ Species, var = "PC1") %>% test(adjust = "fdr")
-
-# Species PC1.trend    SE df t.ratio p.value
-# ABAM       0.1512 0.216 46   0.699  0.5695
-# ABGR       0.3020 0.190 46   1.586  0.5368
-# ALRU       0.2278 0.162 46   1.408  0.5368
-# CONU      -0.2121 0.233 46  -0.910  0.5368
-# TABR       0.2694 0.249 46   1.082  0.5368
-# THPL      -0.1687 0.192 46  -0.880  0.5368
-# TSHE      -0.0709 0.253 46  -0.280  0.7808
-
-# No significant relationships for any species 
-
-anova(lm_root_PC1_diam_sep)
-
-# 
-# Response: diam_diff
-# Df Sum Sq Mean Sq F value    Pr(>F)    
-# PC1          1  2.006  2.0061  1.8823 0.1767234    
-# Species      6 34.806  5.8011  5.4431 0.0002545 ***
-#   PC1:Species  6  6.894  1.1491  1.0782 0.3894524    
-# Residuals   46 49.026  1.0658                      
-# ---
-#   Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
-
-
-# Diam diff is different between species, but their root PC1 values are not what is driving this. 
-
-
-## PC2 - All species together 
-root_PC2_diam_all <- ggplot(root_growth_env, aes(x = PC2, y = diam_diff, colour = Species)) +
-  geom_point(alpha = 1, cex = 2.5) +
-  geom_smooth(method = "lm", se = TRUE, color = "black") +
-  theme_bw() +
-  scale_colour_manual(values=all_hosts, 
-                      name="Species",
-                      breaks=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE"),
-                      labels=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE")) +
-  labs(x = "Root Trait PC2 Value", y = "Diameter Difference (mm)") +
-  theme(
-    axis.text.x = element_text(size = 11, colour="black"),
-    axis.text.y = element_text(size = 11, colour="black"),
-    axis.title.y = element_text(size = 12, colour="black"),
-    axis.title.x = element_text(size = 12, colour="black"), 
-    strip.text = element_text(size = 12, colour="black")) +
-  theme(legend.text = element_text(size = 11, colour="black"), 
-        legend.title = element_text(size = 12, face = "bold", colour="black")) +
-  theme(legend.position = "right")
-
-root_PC2_diam_all
-
-
-# test relationships 
-lm_root_PC2_diam_all <- lm(diam_diff ~ PC2, data = root_growth_env)
-
-summary(lm_root_PC2_diam_all)
-
-
-# Multiple R-squared:  0.09472,	Adjusted R-squared:  0.07911 
-# F-statistic: 6.069 on 1 and 58 DF,  p-value: 0.01675
-
-# SIGNFIICANT RELATIONSHIP for the species all together 
-
-
-# PC2 - For separate species
-root_PC2_diam_sep <- ggplot(root_growth_env, aes(x = PC2, y = diam_diff, colour = Species)) +
-  geom_point(alpha = 1, cex = 2.5) +
-  geom_smooth(method = "lm", se = TRUE, color = "black") +
-  facet_wrap(~ Species, scales = "free_x") +
-  theme_bw() +
-  scale_colour_manual(values=all_hosts, 
-                      name="Species",
-                      breaks=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE"),
-                      labels=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE")) +
-  labs(x = "Root Trait PC2 Value", y = "Diameter Difference (mm)") +
-  theme(
-    axis.text.x = element_text(size = 11, colour="black"),
-    axis.text.y = element_text(size = 11, colour="black"),
-    axis.title.y = element_text(size = 12, colour="black"),
-    axis.title.x = element_text(size = 12, colour="black"), 
-    strip.text = element_text(size = 12, colour="black")) +
-  theme(legend.text = element_text(size = 11, colour="black"), 
-        legend.title = element_text(size = 12, face = "bold", colour="black")) +
-  theme(legend.position = "right")
-
-root_PC2_diam_sep
-
-
-# test relationships 
-lm_root_PC2_diam_sep <- lm(diam_diff ~ PC2 * Species, data = root_growth_env)
-
-emtrends(lm_root_PC2_diam_sep, ~ Species, var = "PC2") %>% test(adjust = "fdr")
-
-# Species PC2.trend    SE df t.ratio p.value
-# ABAM        0.835 0.294 46   2.840  0.0468
-# ABGR        0.871 0.485 46   1.797  0.1842
-# ALRU       -0.216 0.236 46  -0.917  0.5325
-# CONU        0.137 0.280 46   0.491  0.7146
-# TABR       -0.215 0.584 46  -0.368  0.7146
-# THPL        0.508 0.281 46   1.809  0.1842
-# TSHE        0.296 0.334 46   0.886  0.5325
-
-# SIGNIFICANT RELATIONSHIP FOR ABAM for any species 
-
-anova(lm_root_PC2_diam_sep)
-
-# 
-# Response: diam_diff
-# Df Sum Sq Mean Sq F value    Pr(>F)    
-# PC2          1  8.784  8.7837  9.5781 0.0033464 ** 
-# Species      6 31.566  5.2610  5.7368 0.0001615 ***
-# PC2:Species  6 10.198  1.6997  1.8534 0.1095739    
-# Residuals   46 42.185  0.9171                      
-# ---
-#   Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
-
-
-# Diam diff is different between species, and PC2 values are also different between species. 
-
-
-
 ### RGR ####
 
 ## LEAF TRAITS
 
 # PC1 - All species together 
-leaf_PC1_rgr_all <- ggplot(leaf_growth_env, aes(x = PC1, y = RGR, colour = Species)) +
+leaf_PC1_rgr_all <- ggplot(leaf_growth_env, aes(x = PC1, y = mean_RGR, colour = Species)) +
   geom_point(alpha = 1, cex = 2.5) +
   geom_smooth(method = "lm", se = TRUE, color = "black") +
   theme_bw() +
@@ -957,7 +412,7 @@ leaf_PC1_rgr_all <- ggplot(leaf_growth_env, aes(x = PC1, y = RGR, colour = Speci
                       name="Species",
                       breaks=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE"),
                       labels=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE")) +
-  labs(x = "Leaf Trait PC1 Value", y = expression("Relative Growth Rate ("*yr^{-1}*")")) +
+  labs(x = "Leaf Trait PC1 Value", y = expression("Mean RGR ("*yr^{-1}*")")) +
   theme(
     axis.text.x = element_text(size = 11, colour="black"),
     axis.text.y = element_text(size = 11, colour="black"),
@@ -972,19 +427,19 @@ leaf_PC1_rgr_all
 
 
 # test relationships 
-lm_leaf_PC1_rgr_all <- lm(RGR ~ PC1, data = leaf_growth_env)
+lm_leaf_PC1_rgr_all <- lm(mean_RGR ~ PC1, data = leaf_growth_env)
 
 summary(lm_leaf_PC1_rgr_all)
 
-
-# Multiple R-squared:  0.006755,	Adjusted R-squared:  -0.01037 
-# F-statistic: 0.3945 on 1 and 58 DF,  p-value: 0.5324
+# 
+# Multiple R-squared:  0.006539,	Adjusted R-squared:  -0.01059 
+# F-statistic: 0.3818 on 1 and 58 DF,  p-value: 0.5391
 
 # No significant relationship for the species all together 
 
 
 # PC1 - For separate species
-leaf_PC1_rgr_sep <- ggplot(leaf_growth_env, aes(x = PC1, y = RGR, colour = Species)) +
+leaf_PC1_rgr_sep <- ggplot(leaf_growth_env, aes(x = PC1, y = mean_RGR, colour = Species)) +
   geom_point(alpha = 1, cex = 2.5) +
   geom_smooth(method = "lm", se = TRUE, color = "black") +
   facet_wrap(~ Species, scales = "free_x") +
@@ -993,7 +448,7 @@ leaf_PC1_rgr_sep <- ggplot(leaf_growth_env, aes(x = PC1, y = RGR, colour = Speci
                       name="Species",
                       breaks=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE"),
                       labels=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE")) +
-  labs(x = "Leaf Trait PC1 Value", y = expression("Relative Growth Rate ("*yr^{-1}*")")) +
+  labs(x = "Leaf Trait PC1 Value", y = expression("Mean Relative Growth Rate ("*yr^{-1}*")")) +
   theme(
     axis.text.x = element_text(size = 11, colour="black"),
     axis.text.y = element_text(size = 11, colour="black"),
@@ -1008,30 +463,30 @@ leaf_PC1_rgr_sep
 
 
 # test relationships 
-lm_leaf_PC1_rgr_sep <- lm(RGR ~ PC1 * Species, data = leaf_growth_env)
+lm_leaf_PC1_rgr_sep <- lm(mean_RGR ~ PC1 * Species, data = leaf_growth_env)
 
 emtrends(lm_leaf_PC1_rgr_sep, ~ Species, var = "PC1") %>% test(adjust = "fdr")
 
 # Species PC1.trend      SE df t.ratio p.value
-# ABAM     -0.00694 0.00484 46  -1.434  0.2839
-# ABGR     -0.00297 0.00597 46  -0.497  0.7068
-# ALRU      0.02892 0.01070 46   2.697  0.0682
-# CONU      0.00189 0.00498 46   0.378  0.7068
-# TABR     -0.00156 0.00272 46  -0.573  0.7068
-# THPL      0.00423 0.00298 46   1.420  0.2839
-# TSHE      0.00692 0.00364 46   1.902  0.2219
+# ABAM     -0.00669 0.00485 46  -1.377  0.3064
+# ABGR     -0.00295 0.00598 46  -0.493  0.6970
+# ALRU      0.02867 0.01070 46   2.667  0.0737
+# CONU      0.00196 0.00499 46   0.392  0.6970
+# TABR     -0.00152 0.00273 46  -0.558  0.6970
+# THPL      0.00415 0.00299 46   1.388  0.3064
+# TSHE      0.00685 0.00365 46   1.878  0.2333
 
 # No significant relationships for any species 
 
 anova(lm_leaf_PC1_rgr_sep)
 
 # 
-# Response: RGR
+# Response: mean_RGR
 # Df    Sum Sq    Mean Sq F value    Pr(>F)    
-# PC1          1 0.0000512 0.00005116  0.6746   0.41568    
-# Species      6 0.0029377 0.00048961  6.4561 5.468e-05 ***
-#   PC1:Species  6 0.0010963 0.00018272  2.4094   0.04151 *  
-#   Residuals   46 0.0034885 0.00007584                      
+# PC1          1 0.0000496 0.00004963  0.6515   0.42372    
+# Species      6 0.0029733 0.00049555  6.5057 5.083e-05 ***
+#   PC1:Species  6 0.0010622 0.00017703  2.3241   0.04822 *  
+#   Residuals   46 0.0035040 0.00007617                      
 # ---
 #   Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
 
@@ -1041,7 +496,7 @@ anova(lm_leaf_PC1_rgr_sep)
 
 
 ## PC2 - All species together 
-leaf_PC2_rgr_all <- ggplot(leaf_growth_env, aes(x = PC2, y = RGR, colour = Species)) +
+leaf_PC2_rgr_all <- ggplot(leaf_growth_env, aes(x = PC2, y = mean_RGR, colour = Species)) +
   geom_point(alpha = 1, cex = 2.5) +
   geom_smooth(method = "lm", se = TRUE, color = "black") +
   theme_bw() +
@@ -1049,7 +504,7 @@ leaf_PC2_rgr_all <- ggplot(leaf_growth_env, aes(x = PC2, y = RGR, colour = Speci
                       name="Species",
                       breaks=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE"),
                       labels=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE")) +
-  labs(x = "Leaf Trait PC2 Value", y = expression("Relative Growth Rate ("*yr^{-1}*")")) +
+  labs(x = "Leaf Trait PC2 Value", y = expression("Mean RGR ("*yr^{-1}*")")) +
   theme(
     axis.text.x = element_text(size = 11, colour="black"),
     axis.text.y = element_text(size = 11, colour="black"),
@@ -1064,19 +519,19 @@ leaf_PC2_rgr_all
 
 
 # test relationships 
-lm_leaf_PC2_rgr_all <- lm(RGR ~ PC2, data = leaf_growth_env)
+lm_leaf_PC2_rgr_all <- lm(mean_RGR ~ PC2, data = leaf_growth_env)
 
 summary(lm_leaf_PC2_rgr_all)
 
 
-# Multiple R-squared:  0.01543,	Adjusted R-squared:  -0.00154 
-# F-statistic: 0.9093 on 1 and 58 DF,  p-value: 0.3443
+# Multiple R-squared:  0.01531,	Adjusted R-squared:  -0.001663 
+# F-statistic: 0.902 on 1 and 58 DF,  p-value: 0.3462
 
 # No significant relationship for the species all together 
 
 
 # PC2 - For separate species
-leaf_PC2_rgr_sep <- ggplot(leaf_growth_env, aes(x = PC2, y = RGR, colour = Species)) +
+leaf_PC2_rgr_sep <- ggplot(leaf_growth_env, aes(x = PC2, y = mean_RGR, colour = Species)) +
   geom_point(alpha = 1, cex = 2.5) +
   geom_smooth(method = "lm", se = TRUE, color = "black") +
   facet_wrap(~ Species, scales = "free_x") +
@@ -1085,7 +540,7 @@ leaf_PC2_rgr_sep <- ggplot(leaf_growth_env, aes(x = PC2, y = RGR, colour = Speci
                       name="Species",
                       breaks=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE"),
                       labels=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE")) +
-  labs(x = "Leaf Trait PC2 Value", y = expression("Relative Growth Rate ("*yr^{-1}*")")) +
+  labs(x = "Leaf Trait PC2 Value", y = expression("Mean Relative Growth Rate ("*yr^{-1}*")")) +
   theme(
     axis.text.x = element_text(size = 11, colour="black"),
     axis.text.y = element_text(size = 11, colour="black"),
@@ -1100,30 +555,30 @@ leaf_PC2_rgr_sep
 
 
 # test relationships 
-lm_leaf_PC2_rgr_sep <- lm(RGR ~ PC2 * Species, data = leaf_growth_env)
+lm_leaf_PC2_rgr_sep <- lm(mean_RGR ~ PC2 * Species, data = leaf_growth_env)
 
 emtrends(lm_leaf_PC2_rgr_sep, ~ Species, var = "PC2") %>% test(adjust = "fdr")
 
 # Species PC2.trend      SE df t.ratio p.value
-# ABAM     0.004801 0.00548 46   0.875  0.9610
-# ABGR    -0.000625 0.01270 46  -0.049  0.9610
-# ALRU    -0.001299 0.01020 46  -0.127  0.9610
-# CONU    -0.004106 0.00630 46  -0.652  0.9610
-# TABR    -0.001492 0.00483 46  -0.309  0.9610
-# THPL    -0.001833 0.00459 46  -0.399  0.9610
-# TSHE    -0.002370 0.00523 46  -0.453  0.9610
+# ABAM      0.00472 0.00548 46   0.861  0.9606
+# ABGR     -0.00063 0.01270 46  -0.050  0.9606
+# ALRU     -0.00117 0.01020 46  -0.114  0.9606
+# CONU     -0.00407 0.00629 46  -0.648  0.9606
+# TABR     -0.00165 0.00482 46  -0.343  0.9606
+# THPL     -0.00172 0.00458 46  -0.376  0.9606
+# TSHE     -0.00236 0.00522 46  -0.452  0.9606
 
 # No significant relationships for any species 
 
 anova(lm_leaf_PC2_rgr_sep)
 
 # 
-# Response: RGR
+# Response: mean_RGR
 # Df    Sum Sq    Mean Sq F value    Pr(>F)    
-# PC2          1 0.0001169 0.00011690  1.1913 0.2807571    
-# Species      6 0.0027980 0.00046633  4.7522 0.0007637 ***
-#   PC2:Species  6 0.0001448 0.00002414  0.2460 0.9585161    
-# Residuals   46 0.0045140 0.00009813                      
+# PC2          1 0.0001162 0.00011622  1.1882 0.2813680    
+# Species      6 0.0028327 0.00047212  4.8269 0.0006768 ***
+#   PC2:Species  6 0.0001410 0.00002349  0.2402 0.9608359    
+# Residuals   46 0.0044992 0.00009781                      
 # ---
 #   Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
 
@@ -1135,7 +590,7 @@ anova(lm_leaf_PC2_rgr_sep)
 ## ROOT TRAITS
 
 # PC1 - All species together 
-root_PC1_rgr_all <- ggplot(root_growth_env, aes(x = PC1, y = RGR, colour = Species)) +
+root_PC1_rgr_all <- ggplot(root_growth_env, aes(x = PC1, y = mean_RGR, colour = Species)) +
   geom_point(alpha = 1, cex = 2.5) +
   geom_smooth(method = "lm", se = TRUE, color = "black") +
   theme_bw() +
@@ -1143,7 +598,7 @@ root_PC1_rgr_all <- ggplot(root_growth_env, aes(x = PC1, y = RGR, colour = Speci
                       name="Species",
                       breaks=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE"),
                       labels=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE")) +
-  labs(x = "Root Trait PC1 Value", y = expression("Relative Growth Rate ("*yr^{-1}*")")) +
+  labs(x = "Root Trait PC1 Value", y = expression("Mean RGR ("*yr^{-1}*")")) +
   theme(
     axis.text.x = element_text(size = 11, colour="black"),
     axis.text.y = element_text(size = 11, colour="black"),
@@ -1158,19 +613,19 @@ root_PC1_rgr_all
 
 
 # test relationships 
-lm_root_PC1_rgr_all <- lm(RGR ~ PC1, data = root_growth_env)
+lm_root_PC1_rgr_all <- lm(mean_RGR ~ PC1, data = root_growth_env)
 
 summary(lm_root_PC1_rgr_all)
 
 
-# Multiple R-squared:  0.05721,	Adjusted R-squared:  0.04095 
-# F-statistic: 3.519 on 1 and 58 DF,  p-value: 0.06569
+# Multiple R-squared:  0.05804,	Adjusted R-squared:  0.0418 
+# F-statistic: 3.574 on 1 and 58 DF,  p-value: 0.06369
 
 # No significant relationship for the species all together 
 
 
 # PC1 - For separate species
-root_PC1_rgr_sep <- ggplot(root_growth_env, aes(x = PC1, y = RGR, colour = Species)) +
+root_PC1_rgr_sep <- ggplot(root_growth_env, aes(x = PC1, y = mean_RGR, colour = Species)) +
   geom_point(alpha = 1, cex = 2.5) +
   geom_smooth(method = "lm", se = TRUE, color = "black") +
   facet_wrap(~ Species, scales = "free_x") +
@@ -1179,7 +634,7 @@ root_PC1_rgr_sep <- ggplot(root_growth_env, aes(x = PC1, y = RGR, colour = Speci
                       name="Species",
                       breaks=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE"),
                       labels=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE")) +
-  labs(x = "Root Trait PC1 Value", y = expression("Relative Growth Rate ("*yr^{-1}*")")) +
+  labs(x = "Root Trait PC1 Value", y = expression("Mean Relative Growth Rate ("*yr^{-1}*")")) +
   theme(
     axis.text.x = element_text(size = 11, colour="black"),
     axis.text.y = element_text(size = 11, colour="black"),
@@ -1194,30 +649,30 @@ root_PC1_rgr_sep
 
 
 # test relationships 
-lm_root_PC1_rgr_sep <- lm(RGR ~ PC1 * Species, data = root_growth_env)
+lm_root_PC1_rgr_sep <- lm(mean_RGR ~ PC1 * Species, data = root_growth_env)
 
 emtrends(lm_root_PC1_rgr_sep, ~ Species, var = "PC1") %>% test(adjust = "fdr")
 
 # Species PC1.trend      SE df t.ratio p.value
-# ABAM      0.00190 0.00189 46   1.009  0.4806
-# ABGR      0.00118 0.00166 46   0.711  0.4806
-# ALRU      0.00316 0.00141 46   2.240  0.2096
-# CONU     -0.00300 0.00203 46  -1.476  0.4572
-# TABR      0.00182 0.00217 46   0.841  0.4806
-# THPL     -0.00126 0.00167 46  -0.756  0.4806
-# TSHE     -0.00290 0.00221 46  -1.312  0.4572
+# ABAM      0.00179 0.00189 46   0.948  0.4841
+# ABGR      0.00117 0.00166 46   0.705  0.4841
+# ALRU      0.00317 0.00141 46   2.251  0.2046
+# CONU     -0.00296 0.00203 46  -1.456  0.4706
+# TABR      0.00184 0.00217 46   0.850  0.4841
+# THPL     -0.00125 0.00167 46  -0.748  0.4841
+# TSHE     -0.00286 0.00221 46  -1.295  0.4706
 
 # No significant relationships for any species 
 
 anova(lm_root_PC1_rgr_sep)
 
 # 
-# Response: RGR
+# Response: mean_RGR
 # Df    Sum Sq    Mean Sq F value    Pr(>F)    
-# PC1          1 0.0004333 0.00043328  5.3463 0.0252946 *  
-#   Species      6 0.0025134 0.00041890  5.1689 0.0003917 ***
-#   PC1:Species  6 0.0008990 0.00014983  1.8488 0.1104378    
-# Residuals   46 0.0037280 0.00008104                      
+# PC1          1 0.0004405 0.00044049  5.4395 0.0241183 *  
+#   Species      6 0.0025396 0.00042326  5.2267 0.0003575 ***
+#   PC1:Species  6 0.0008839 0.00014732  1.8192 0.1162116    
+# Residuals   46 0.0037251 0.00008098                      
 # ---
 #   Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
 
@@ -1226,7 +681,7 @@ anova(lm_root_PC1_rgr_sep)
 
 
 ## PC2 - All species together 
-root_PC2_rgr_all <- ggplot(root_growth_env, aes(x = PC2, y = RGR, colour = Species)) +
+root_PC2_rgr_all <- ggplot(root_growth_env, aes(x = PC2, y = mean_RGR, colour = Species)) +
   geom_point(alpha = 1, cex = 2.5) +
   geom_smooth(method = "lm", se = TRUE, color = "black") +
   theme_bw() +
@@ -1234,7 +689,7 @@ root_PC2_rgr_all <- ggplot(root_growth_env, aes(x = PC2, y = RGR, colour = Speci
                       name="Species",
                       breaks=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE"),
                       labels=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE")) +
-  labs(x = "Root Trait PC2 Value", y = expression("Relative Growth Rate ("*yr^{-1}*")")) +
+  labs(x = "Root Trait PC2 Value", y = expression("Mean RGR ("*yr^{-1}*")")) +
   theme(
     axis.text.x = element_text(size = 11, colour="black"),
     axis.text.y = element_text(size = 11, colour="black"),
@@ -1249,19 +704,19 @@ root_PC2_rgr_all
 
 
 # test relationships 
-lm_root_PC2_rgr_all <- lm(RGR ~ PC2, data = root_growth_env)
+lm_root_PC2_rgr_all <- lm(mean_RGR ~ PC2, data = root_growth_env)
 
 summary(lm_root_PC2_rgr_all)
 
 
-# Multiple R-squared:  0.08763,	Adjusted R-squared:  0.0719 
-# F-statistic: 5.571 on 1 and 58 DF,  p-value: 0.02165
+# Multiple R-squared:  0.08471,	Adjusted R-squared:  0.06893 
+# F-statistic: 5.368 on 1 and 58 DF,  p-value: 0.02406
 
 # SIGNIFICANT RELATIONSHIP for the species all together 
 
 
 # PC2 - For separate species
-root_PC2_rgr_sep <- ggplot(root_growth_env, aes(x = PC2, y = RGR, colour = Species)) +
+root_PC2_rgr_sep <- ggplot(root_growth_env, aes(x = PC2, y = mean_RGR, colour = Species)) +
   geom_point(alpha = 1, cex = 2.5) +
   geom_smooth(method = "lm", se = TRUE, color = "black") +
   facet_wrap(~ Species, scales = "free_x") +
@@ -1270,7 +725,7 @@ root_PC2_rgr_sep <- ggplot(root_growth_env, aes(x = PC2, y = RGR, colour = Speci
                       name="Species",
                       breaks=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE"),
                       labels=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE")) +
-  labs(x = "Root Trait PC2 Value", y = expression("Relative Growth Rate ("*yr^{-1}*")")) +
+  labs(x = "Root Trait PC2 Value", y = expression("Mean Relative Growth Rate ("*yr^{-1}*")")) +
   theme(
     axis.text.x = element_text(size = 11, colour="black"),
     axis.text.y = element_text(size = 11, colour="black"),
@@ -1285,30 +740,30 @@ root_PC2_rgr_sep
 
 
 # test relationships 
-lm_root_PC2_rgr_sep <- lm(RGR ~ PC2 * Species, data = root_growth_env)
+lm_root_PC2_rgr_sep <- lm(mean_RGR ~ PC2 * Species, data = root_growth_env)
 
 emtrends(lm_root_PC2_rgr_sep, ~ Species, var = "PC2") %>% test(adjust = "fdr")
 
 # Species PC2.trend      SE df t.ratio p.value
-# ABAM     0.007260 0.00269 46   2.701  0.0674
-# ABGR     0.003506 0.00443 46   0.791  0.6058
-# ALRU    -0.000314 0.00215 46  -0.146  0.8846
-# CONU     0.002275 0.00256 46   0.890  0.6058
-# TABR    -0.001554 0.00533 46  -0.291  0.8846
-# THPL     0.005387 0.00257 46   2.099  0.1446
-# TSHE     0.004110 0.00306 46   1.345  0.4319
+# ABAM     0.007089 0.00270 46   2.629  0.0811
+# ABGR     0.003485 0.00444 46   0.784  0.6117
+# ALRU    -0.000353 0.00216 46  -0.164  0.8708
+# CONU     0.002275 0.00257 46   0.887  0.6117
+# TABR    -0.001566 0.00535 46  -0.293  0.8708
+# THPL     0.005287 0.00257 46   2.053  0.1601
+# TSHE     0.004078 0.00306 46   1.331  0.4431
 
 # No significant relationships for any species 
 
 anova(lm_root_PC2_rgr_sep)
 
 # 
-# Response: RGR
-# Df    Sum Sq    Mean Sq F value    Pr(>F)    
-# PC2          1 0.0006637 0.00066369  8.6600  0.005082 ** 
-#   Species      6 0.0028723 0.00047872  6.2464 7.465e-05 ***
-#   PC2:Species  6 0.0005123 0.00008539  1.1142  0.368930    
-# Residuals   46 0.0035254 0.00007664                      
+# Response: mean_RGR
+# Df    Sum Sq    Mean Sq F value   Pr(>F)    
+# PC2          1 0.0006429 0.00064289  8.3353 0.005906 ** 
+#   Species      6 0.0029019 0.00048364  6.2706  7.2e-05 ***
+#   PC2:Species  6 0.0004965 0.00008274  1.0728 0.392579    
+# Residuals   46 0.0035479 0.00007713                     
 # ---
 #   Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
 
@@ -1332,7 +787,7 @@ anova(lm_root_PC2_rgr_sep)
 
 
 # PC1 - All species together 
-all_PC1_rgr_all <- ggplot(all_traits_growth_env, aes(x = PC1, y = RGR, colour = Species)) +
+all_PC1_rgr_all <- ggplot(all_traits_growth_env, aes(x = PC1, y = mean_RGR, colour = Species)) +
   geom_point(alpha = 1, cex = 2.5) +
   geom_smooth(method = "lm", se = TRUE, color = "black") +
   theme_bw() +
@@ -1340,7 +795,7 @@ all_PC1_rgr_all <- ggplot(all_traits_growth_env, aes(x = PC1, y = RGR, colour = 
                       name="Species",
                       breaks=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE"),
                       labels=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE")) +
-  labs(x = "Combined Traits PC1 Value", y = expression("Relative Growth Rate ("*yr^{-1}*")")) +
+  labs(x = "Combined Traits PC1 Value", y = expression("Mean RGR ("*yr^{-1}*")")) +
   theme(
     axis.text.x = element_text(size = 11, colour="black"),
     axis.text.y = element_text(size = 11, colour="black"),
@@ -1355,19 +810,19 @@ all_PC1_rgr_all
 
 
 # test relationships 
-lm_all_PC1_rgr_all <- lm(RGR ~ PC1, data = all_traits_growth_env)
+lm_all_PC1_rgr_all <- lm(mean_RGR ~ PC1, data = all_traits_growth_env)
 
 summary(lm_all_PC1_rgr_all)
 
 
-# Multiple R-squared:  0.02399,	Adjusted R-squared:  0.007158 
-# F-statistic: 1.425 on 1 and 58 DF,  p-value: 0.2374
+# Multiple R-squared:  0.02399,	Adjusted R-squared:  0.007163 
+# F-statistic: 1.426 on 1 and 58 DF,  p-value: 0.2373
 
 # No significant relationship for the species all together 
 
 
 # PC1 - For separate species
-all_PC1_rgr_sep <- ggplot(all_traits_growth_env, aes(x = PC1, y = RGR, colour = Species)) +
+all_PC1_rgr_sep <- ggplot(all_traits_growth_env, aes(x = PC1, y = mean_RGR, colour = Species)) +
   geom_point(alpha = 1, cex = 2.5) +
   geom_smooth(method = "lm", se = TRUE, color = "black") +
   facet_wrap(~ Species, scales = "free_x") +
@@ -1376,7 +831,7 @@ all_PC1_rgr_sep <- ggplot(all_traits_growth_env, aes(x = PC1, y = RGR, colour = 
                       name="Species",
                       breaks=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE"),
                       labels=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE")) +
-  labs(x = "Combined Traits PC1 Value", y = expression("Relative Growth Rate ("*yr^{-1}*")")) +
+  labs(x = "Combined Traits PC1 Value", y = expression("Mean Relative Growth Rate ("*yr^{-1}*")")) +
   theme(
     axis.text.x = element_text(size = 11, colour="black"),
     axis.text.y = element_text(size = 11, colour="black"),
@@ -1391,30 +846,30 @@ all_PC1_rgr_sep
 
 
 # test relationships 
-lm_all_PC1_rgr_sep <- lm(RGR ~ PC1 * Species, data = all_traits_growth_env)
+lm_all_PC1_rgr_sep <- lm(mean_RGR ~ PC1 * Species, data = all_traits_growth_env)
 
 emtrends(lm_all_PC1_rgr_sep, ~ Species, var = "PC1") %>% test(adjust = "fdr")
 
 # Species PC1.trend      SE df t.ratio p.value
-# ABAM     -0.00473 0.00264 46  -1.792  0.1814
-# ABGR     -0.00149 0.00209 46  -0.714  0.4788
-# ALRU     -0.00500 0.00273 46  -1.832  0.1814
-# CONU      0.00644 0.00378 46   1.702  0.1814
-# TABR     -0.00225 0.00240 46  -0.935  0.4136
-# THPL      0.00368 0.00255 46   1.440  0.2194
-# TSHE      0.00361 0.00218 46   1.660  0.1814
+# ABAM     -0.00452 0.00265 46  -1.706  0.1896
+# ABGR     -0.00148 0.00209 46  -0.707  0.4831
+# ALRU     -0.00504 0.00274 46  -1.842  0.1896
+# CONU      0.00638 0.00379 46   1.683  0.1896
+# TABR     -0.00223 0.00241 46  -0.927  0.4188
+# THPL      0.00362 0.00256 46   1.414  0.2296
+# TSHE      0.00357 0.00218 46   1.637  0.1896
 
 # No significant relationships for any species 
 
 anova(lm_all_PC1_rgr_sep)
 
 # 
-# Response: RGR
+# Response: mean_RGR
 # Df    Sum Sq    Mean Sq F value    Pr(>F)    
-# PC1          1 0.0001817 0.00018166  2.3951 0.1285695    
-# Species      6 0.0027204 0.00045340  5.9779 0.0001118 ***
-#   PC1:Species  6 0.0011827 0.00019711  2.5988 0.0297576 *  
-#   Residuals   46 0.0034889 0.00007585                      
+# PC1          1 0.0001821 0.00018207  2.3904 0.1289369    
+# Species      6 0.0027532 0.00045887  6.0246 0.0001042 ***
+#   PC1:Species  6 0.0011501 0.00019169  2.5167 0.0343761 *  
+#   Residuals   46 0.0035037 0.00007617                      
 # ---
 #   Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
 
@@ -1423,7 +878,7 @@ anova(lm_all_PC1_rgr_sep)
 
 
 ## PC2 - All species together 
-all_PC2_rgr_all <- ggplot(all_traits_growth_env, aes(x = PC2, y = RGR, colour = Species)) +
+all_PC2_rgr_all <- ggplot(all_traits_growth_env, aes(x = PC2, y = mean_RGR, colour = Species)) +
   geom_point(alpha = 1, cex = 2.5) +
   geom_smooth(method = "lm", se = TRUE, color = "black") +
   theme_bw() +
@@ -1431,7 +886,7 @@ all_PC2_rgr_all <- ggplot(all_traits_growth_env, aes(x = PC2, y = RGR, colour = 
                       name="Species",
                       breaks=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE"),
                       labels=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE")) +
-  labs(x = "Combined Traits PC2 Value", y = expression("Relative Growth Rate ("*yr^{-1}*")")) +
+  labs(x = "Combined Traits PC2 Value", y = expression("Mean RGR ("*yr^{-1}*")")) +
   theme(
     axis.text.x = element_text(size = 11, colour="black"),
     axis.text.y = element_text(size = 11, colour="black"),
@@ -1446,28 +901,28 @@ all_PC2_rgr_all
 
 
 # test relationships 
-lm_all_PC2_rgr_all <- lm(RGR ~ PC2, data = all_traits_growth_env)
+lm_all_PC2_rgr_all <- lm(mean_RGR ~ PC2, data = all_traits_growth_env)
 
 summary(lm_all_PC2_rgr_all)
 
 
-# Multiple R-squared:  0.03666,	Adjusted R-squared:  0.02005 
-# F-statistic: 2.207 on 1 and 58 DF,  p-value: 0.1428
+# Multiple R-squared:  0.03748,	Adjusted R-squared:  0.02088 
+# F-statistic: 2.258 on 1 and 58 DF,  p-value: 0.1383
 
 # No significant relationship for species all together 
 
 
 # PC2 - For separate species
-all_PC2_rgr_sep <- ggplot(all_traits_growth_env, aes(x = PC2, y = RGR, colour = Species)) +
+all_PC2_rgr_sep <- ggplot(all_traits_growth_env, aes(x = PC2, y = mean_RGR, colour = Species)) +
   geom_point(alpha = 1, cex = 2.5) +
   geom_smooth(method = "lm", se = TRUE, color = "black") +
   facet_wrap(~ Species, scales = "free_x") +
   theme_bw() +
   scale_colour_manual(values=all_hosts, 
-                      name="Species",
+                      name="Focal Species",
                       breaks=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE"),
                       labels=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE")) +
-  labs(x = "Combined Traits PC2 Value", y = expression("Relative Growth Rate ("*yr^{-1}*")")) +
+  labs(x = "Combined Traits PC2 Value", y = expression("Mean Relative Growth Rate ("*yr^{-1}*")")) +
   theme(
     axis.text.x = element_text(size = 11, colour="black"),
     axis.text.y = element_text(size = 11, colour="black"),
@@ -1482,30 +937,30 @@ all_PC2_rgr_sep
 
 
 # test relationships 
-lm_all_PC2_rgr_sep <- lm(RGR ~ PC2 * Species, data = all_traits_growth_env)
+lm_all_PC2_rgr_sep <- lm(mean_RGR ~ PC2 * Species, data = all_traits_growth_env)
 
 emtrends(lm_all_PC2_rgr_sep, ~ Species, var = "PC2") %>% test(adjust = "fdr")
 
 # Species PC2.trend      SE df t.ratio p.value
-# ABAM     0.001023 0.00236 46   0.435  0.6659
-# ABGR     0.001740 0.00253 46   0.689  0.6659
-# ALRU     0.003627 0.00159 46   2.281  0.1908
-# CONU    -0.002806 0.00213 46  -1.316  0.6659
-# TABR     0.001493 0.00261 46   0.572  0.6659
-# THPL    -0.000918 0.00190 46  -0.482  0.6659
-# TSHE    -0.003399 0.00368 46  -0.924  0.6659
+# ABAM     0.000923 0.00235 46   0.392  0.6965
+# ABGR     0.001723 0.00252 46   0.683  0.6965
+# ALRU     0.003639 0.00159 46   2.292  0.1858
+# CONU    -0.002769 0.00213 46  -1.300  0.6965
+# TABR     0.001532 0.00261 46   0.588  0.6965
+# THPL    -0.000909 0.00190 46  -0.478  0.6965
+# TSHE    -0.003346 0.00367 46  -0.911  0.6965
 
 # No significant relationships for any species 
 
 anova(lm_all_PC2_rgr_sep)
 
 # 
-# Response: RGR
-# Df    Sum Sq    Mean Sq F value   Pr(>F)    
-# PC2          1 0.0002777 0.00027767  3.2652 0.077308 .  
-# Species      6 0.0026755 0.00044592  5.2437 0.000348 ***
-#   PC2:Species  6 0.0007086 0.00011811  1.3888 0.239408    
-# Residuals   46 0.0039118 0.00008504                     
+# Response: mean_RGR
+# Df    Sum Sq    Mean Sq F value    Pr(>F)    
+# PC2          1 0.0002844 0.00028443  3.3553 0.0734684 .  
+# Species      6 0.0027029 0.00045049  5.3142 0.0003114 ***
+#   PC2:Species  6 0.0007023 0.00011704  1.3807 0.2425869    
+# Residuals   46 0.0038995 0.00008477                      
 # ---
 #   Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
 
@@ -1544,6 +999,4 @@ RGR_plots
 
 
 ## -- END -- ## 
-
-
 
