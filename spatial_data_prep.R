@@ -84,6 +84,14 @@ focal <- read.csv("stems_WFDP_20250206_trimmed.csv")
 focal$Cell <- as.factor(focal$Cell)
 focal$Species <- as.factor(focal$Species)
 
+# Has rows for each data point, so can trim to unique STEM_TAG
+focal_trees <- dplyr::distinct(focal, Stem_Tag, UTM_X, UTM_Y)
+
+# Save focal tree points and convert to sf 
+st_write(st_as_sf(focal_trees, coords = c("UTM_X", "UTM_Y"), crs = 32610),
+         "~/Dropbox/WSU/WFDP_Chapter_3_Project/GIS/WFDP_focal_trees.shp")
+
+
 #################################################################################
 
 ############################ -- 
@@ -247,7 +255,7 @@ wfdp_utm_sf <- st_sfc(wfdp_utm_poly, crs = 32610) %>% st_sf(plot = "WFDP_boundar
 
 # --- quick plot to check ---
 plot(st_geometry(wfdp_utm_sf), border = "darkgreen", lwd = 2, asp = 1)
-# if you have focal points in 'focal_sf' (EPSG:32610), plot them:
+# if there are focal points in 'focal_sf' (EPSG:32610), plot them:
 if(exists("focal_sf")) {
   plot(st_geometry(focal_sf), add = TRUE, col = "red", pch = 16)
 }
