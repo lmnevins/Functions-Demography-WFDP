@@ -597,7 +597,7 @@ T1_mean_plot <- ggplot() +
     legend.position = "right",
     legend.title = element_text(colour="black", size=12, face="bold"),
     legend.text  = element_text(colour="black", size=11),
-    axis.text    = element_text(size=11, colour="black"),
+    axis.text    = element_text(size=1, colour="white"),
     axis.title   = element_text(size=12, colour="black")
   )
 
@@ -699,7 +699,7 @@ T1_range_plot <- ggplot() +
     legend.position = "right",
     legend.title = element_text(colour="black", size=12, face="bold"),
     legend.text  = element_text(colour="black", size=11),
-    axis.text    = element_text(size=11, colour="black"),
+    axis.text    = element_text(size=1, colour="white"),
     axis.title   = element_text(size=12, colour="black")
   )
 
@@ -796,7 +796,7 @@ T3_mean_plot <- ggplot() +
     legend.position = "right",
     legend.title = element_text(colour="black", size=12, face="bold"),
     legend.text  = element_text(colour="black", size=11),
-    axis.text    = element_text(size=11, colour="black"),
+    axis.text    = element_text(size=1, colour="white"),
     axis.title   = element_text(size=12, colour="black")
   )
 
@@ -893,7 +893,7 @@ T3_range_plot <- ggplot() +
     legend.position = "right",
     legend.title = element_text(colour="black", size=12, face="bold"),
     legend.text  = element_text(colour="black", size=11),
-    axis.text    = element_text(size=11, colour="black"),
+    axis.text    = element_text(size=1, colour="white"),
     axis.title   = element_text(size=12, colour="black")
   )
 
@@ -987,7 +987,7 @@ VWC_mean_plot <- ggplot() +
     legend.position = "right",
     legend.title = element_text(colour="black", size=12, face="bold"),
     legend.text  = element_text(colour="black", size=11),
-    axis.text    = element_text(size=11, colour="black"),
+    axis.text    = element_text(size=1, colour="white"),
     axis.title   = element_text(size=12, colour="black")
   )
 
@@ -1084,7 +1084,7 @@ VWC_range_plot <- ggplot() +
     legend.position = "right",
     legend.title = element_text(colour="black", size=12, face="bold"),
     legend.text  = element_text(colour="black", size=11),
-    axis.text    = element_text(size=11, colour="black"),
+    axis.text    = element_text(size=1, colour="white"),
     axis.title   = element_text(size=12, colour="black")
   )
 
@@ -1182,7 +1182,7 @@ pH_10cm_plot <- ggplot() +
     legend.position = "right",
     legend.title = element_text(colour="black", size=12, face="bold"),
     legend.text  = element_text(colour="black", size=11),
-    axis.text    = element_text(size=11, colour="black"),
+    axis.text    = element_text(size=1, colour="white"),
     axis.title   = element_text(size=12, colour="black")
   )
 
@@ -1276,7 +1276,7 @@ pH_20cm_plot <- ggplot() +
     legend.position = "right",
     legend.title = element_text(colour="black", size=12, face="bold"),
     legend.text  = element_text(colour="black", size=11),
-    axis.text    = element_text(size=11, colour="black"),
+    axis.text    = element_text(size=1, colour="white"),
     axis.title   = element_text(size=12, colour="black")
   )
 
@@ -1371,7 +1371,7 @@ OM_10cm_plot <- ggplot() +
     legend.position = "right",
     legend.title = element_text(colour="black", size=12, face="bold"),
     legend.text  = element_text(colour="black", size=11),
-    axis.text    = element_text(size=11, colour="black"),
+    axis.text    = element_text(size=1, colour="white"),
     axis.title   = element_text(size=12, colour="black")
   )
 
@@ -1465,7 +1465,7 @@ OM_20cm_plot <- ggplot() +
     legend.position = "right",
     legend.title = element_text(colour="black", size=12, face="bold"),
     legend.text  = element_text(colour="black", size=11),
-    axis.text    = element_text(size=11, colour="black"),
+    axis.text    = element_text(size=1, colour="white"),
     axis.title   = element_text(size=12, colour="black")
   )
 
@@ -1559,7 +1559,7 @@ N_10cm_plot <- ggplot() +
     legend.position = "right",
     legend.title = element_text(colour="black", size=12, face="bold"),
     legend.text  = element_text(colour="black", size=11),
-    axis.text    = element_text(size=11, colour="black"),
+    axis.text    = element_text(size=1, colour="white"),
     axis.title   = element_text(size=12, colour="black")
   )
 
@@ -1653,7 +1653,7 @@ N_20cm_plot <- ggplot() +
     legend.position = "right",
     legend.title = element_text(colour="black", size=12, face="bold"),
     legend.text  = element_text(colour="black", size=11),
-    axis.text    = element_text(size=11, colour="black"),
+    axis.text    = element_text(size=1, colour="white"),
     axis.title   = element_text(size=12, colour="black")
   )
 
