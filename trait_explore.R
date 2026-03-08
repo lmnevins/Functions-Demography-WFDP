@@ -37,7 +37,9 @@ library(multcompView); packageVersion("multcompView")
 #################################################################################
 #                               Main workflow                                   #
 #  Explore the leaf and root trait data. Determine if there are differences     #
-#  between species, and maybe try to map some of the variation across the plot? #
+#  between species, and major PCA axes for the separate and combined traits.    #
+#  Explore relationships between traits typically considered to be equivalent   #
+#  above and belowground.                                                       #
 #                                                                               #
 #################################################################################
 
@@ -128,11 +130,16 @@ traits_tree <- subset(traits, select = -c(code, WFDP_Code, sub_plot))
 
 # set colors for hosts 
 # ABAM      ABGR      ALRU        CONU     TABR        THPL       TSHE        
-all_hosts <- c("#9b5fe0", "#16a4d8", "#60dbe8", "#8bd346","#efdf48", "#f9a52F", "#d64e12")
-
+all_hosts <- c("#FFD373", "#FD8021", "#E05400", "#0073CC","#003488", "#001D59", "#001524")
 
 
 # pause and look at variation in raw traits between species 
+
+
+# Grab environmental data again for some association labels 
+env <- read.csv("~/Dropbox/WSU/WFDP_Chapter_3_Project/Enviro_Data/WFDP_enviro_data_all.csv")
+
+env <- dplyr::select(env, WFDP_Code, Association, Host_ID)
 
 
 #subset a few columns from traits 
@@ -167,20 +174,18 @@ trait_plot_OG
 
 
 # Take a closer look at just the isotopic results 
-
 isotopes <- dplyr::select(traits_sub, Host_ID, leaf_13C, leaf_15N, root_13C, root_15N)
 
+# Merge with env to get associations 
+isotopes$Association <- env$Association
 
 # Convert to long format for ggplot
-isotopes <- pivot_longer(isotopes, cols = -(Host_ID), names_to = "trait", values_to = "value")
+isotopes <- pivot_longer(isotopes, cols = -c(Host_ID, Association), names_to = "trait", values_to = "value")
 
 # Boxplot
-isotopes_plot <- ggplot(isotopes, aes(x = Host_ID, y = value, fill = Host_ID)) +
+isotopes_plot <- ggplot(isotopes, aes(x = Host_ID, y = value, fill = Association)) +
   geom_boxplot() +
-  scale_fill_manual(values=all_hosts, 
-                      name="Host Species",
-                      breaks=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE"),
-                      labels=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE")) +
+  scale_fill_manual(values = c("AM" = "#dc267f", "DUAL" = "#648fff", "EM" = "#ffb000"), name = "Mycorrhizal\n Association") + 
   facet_wrap(~trait, scales = "free_y") +  # Separate plots for each trait
   theme_bw() +
   labs(title = "", y = expression("Isotope per mil"), x = "") +
@@ -200,15 +205,37 @@ isotopes_plot
 # these values 
 
 
+################################### -- 
+# (2) EXPLORE TRAIT RELATIONSHIPS 
+################################### -- 
 
-# correlations between raw trait values 
+# Just doing visualizations right now but could test for significant trends if desired 
+
+
 # can use just the 'traits' data 
+traits <- merge(traits, env, by = "WFDP_Code")
+
+# lazy fix for naming 
+traits$Host_ID <- traits$Host_ID.x
+
 
 # leaf C and N
-leaf_CN<- ggplot(traits, aes(x = leaf_pct_N, y = leaf_pct_C, color = Host_ID)) +
-  geom_point(size = 3) +
+leaf_CN <- ggplot(traits, aes(x = leaf_pct_N, y = leaf_pct_C, color = Association)) +
+  geom_point(size = 3, aes(shape = Host_ID)) +
+  geom_smooth(method = "lm", se = TRUE, alpha = 0.2) +
   theme_minimal() +
-  labs(title = "Leaf N vs Leaf C", x = "Leaf N (%)", y = "Leaf C (%)")
+  scale_color_manual(values = c("AM" = "#dc267f", "DUAL" = "#648fff", "EM" = "#ffb000"), name = "Mycorrhizal\nAssociation") + 
+  scale_shape_manual(
+    values = c("ABAM" = 21, "ABGR" = 22, "ALRU" = 23, "CONU" = 24, "TABR" = 25, "THPL" = 7, "TSHE" = 8), name = "Focal Species") +
+  labs(title = "", x = "Leaf N (%)", y = "Leaf C (%)") +
+  theme(legend.position = "right")  +
+  theme(legend.title = element_text(colour="black", size=12, face="bold")) +
+  theme(legend.text = element_text(colour="black", size = 11)) + 
+  theme(
+    axis.text.x = element_text(size = 11, colour="black"),
+    axis.text.y = element_text(size = 11, colour="black"),
+    axis.title.y = element_text(size = 12, colour="black"),
+    axis.title.x = element_text(size = 12, colour="black"))
 
 leaf_CN
 
@@ -217,16 +244,124 @@ leaf_CN
 
 
 # root C and N
-root_CN<- ggplot(traits, aes(x = root_pct_N, y = root_pct_C, color = Host_ID)) +
-  geom_point(size = 3) +
+root_CN <- ggplot(traits, aes(x = root_pct_N, y = root_pct_C, color = Association)) +
+  geom_point(size = 3, aes(shape = Host_ID)) +
+  geom_smooth(method = "lm", se = TRUE, alpha = 0.2) +
   theme_minimal() +
-  labs(title = "Root N vs Root C", x = "Root N (%)", y = "Root C (%)")
+  scale_color_manual(values = c("AM" = "#dc267f", "DUAL" = "#648fff", "EM" = "#ffb000"), name = "Mycorrhizal\nAssociation") + 
+  scale_shape_manual(
+    values = c("ABAM" = 21, "ABGR" = 22, "ALRU" = 23, "CONU" = 24, "TABR" = 25, "THPL" = 7, "TSHE" = 8), name = "Focal Species") +
+  labs(title = "", x = "Root N (%)", y = "Root C (%)") + 
+  theme(legend.position = "right")  +
+  theme(legend.title = element_text(colour="black", size=12, face="bold")) +
+  theme(legend.text = element_text(colour="black", size = 11)) + 
+  theme(
+    axis.text.x = element_text(size = 11, colour="black"),
+    axis.text.y = element_text(size = 11, colour="black"),
+    axis.title.y = element_text(size = 12, colour="black"),
+    axis.title.x = element_text(size = 12, colour="black"))
 
 root_CN
 
 # no visible trends 
 
-####
+
+# whole plant C 
+
+plant_C <- ggplot(traits, aes(x = leaf_pct_C, y = root_pct_C, color = Association)) +
+  geom_point(size = 3, aes(shape = Host_ID)) +
+  geom_smooth(method = "lm", se = TRUE, alpha = 0.2) +
+  theme_minimal() +
+  scale_color_manual(values = c("AM" = "#dc267f", "DUAL" = "#648fff", "EM" = "#ffb000"), name = "Mycorrhizal\nAssociation") + 
+  scale_shape_manual(
+    values = c("ABAM" = 21, "ABGR" = 22, "ALRU" = 23, "CONU" = 24, "TABR" = 25, "THPL" = 7, "TSHE" = 8), name = "Focal Species") +
+  labs(title = "", x = "Leaf C (%)", y = "Root C (%)") + 
+  theme(legend.position = "right")  +
+  theme(legend.title = element_text(colour="black", size=12, face="bold")) +
+  theme(legend.text = element_text(colour="black", size = 11)) + 
+  theme(
+    axis.text.x = element_text(size = 11, colour="black"),
+    axis.text.y = element_text(size = 11, colour="black"),
+    axis.title.y = element_text(size = 12, colour="black"),
+    axis.title.x = element_text(size = 12, colour="black"))
+
+plant_C
+
+
+# whole plant N 
+
+plant_N <- ggplot(traits, aes(x = leaf_pct_N, y = root_pct_N, color = Association)) +
+  geom_point(size = 3, aes(shape = Host_ID)) +
+  geom_smooth(method = "lm", se = TRUE, alpha = 0.2) +
+  theme_minimal() +
+  scale_color_manual(values = c("AM" = "#dc267f", "DUAL" = "#648fff", "EM" = "#ffb000"), name = "Mycorrhizal\nAssociation") + 
+  scale_shape_manual(
+    values = c("ABAM" = 21, "ABGR" = 22, "ALRU" = 23, "CONU" = 24, "TABR" = 25, "THPL" = 7, "TSHE" = 8), name = "Focal Species") +
+  labs(title = "", x = "Leaf N (%)", y = "Root N (%)") + 
+  theme(legend.position = "right")  +
+  theme(legend.title = element_text(colour="black", size=12, face="bold")) +
+  theme(legend.text = element_text(colour="black", size = 11)) + 
+  theme(
+    axis.text.x = element_text(size = 11, colour="black"),
+    axis.text.y = element_text(size = 11, colour="black"),
+    axis.title.y = element_text(size = 12, colour="black"),
+    axis.title.x = element_text(size = 12, colour="black"))
+
+plant_N
+
+
+# SLA x SRL 
+
+SLA_SRL <- ggplot(traits, aes(x = SLA_leaf, y = specific_root_length, color = Association)) +
+  geom_point(size = 3, aes(shape = Host_ID)) +
+  geom_smooth(method = "lm", se = TRUE, alpha = 0.2) +
+  theme_minimal() +
+  scale_color_manual(values = c("AM" = "#dc267f", "DUAL" = "#648fff", "EM" = "#ffb000"), name = "Mycorrhizal\nAssociation") + 
+  scale_shape_manual(
+    values = c("ABAM" = 21, "ABGR" = 22, "ALRU" = 23, "CONU" = 24, "TABR" = 25, "THPL" = 7, "TSHE" = 8), name = "Focal Species") +
+  labs(title = "", x = "SLA (mm2/mg)", y = "SRL (cm/mg)") + 
+  theme(legend.position = "right")  +
+  theme(legend.title = element_text(colour="black", size=12, face="bold")) +
+  theme(legend.text = element_text(colour="black", size = 11)) + 
+  theme(
+    axis.text.x = element_text(size = 11, colour="black"),
+    axis.text.y = element_text(size = 11, colour="black"),
+    axis.title.y = element_text(size = 12, colour="black"),
+    axis.title.x = element_text(size = 12, colour="black"))
+
+SLA_SRL
+
+
+# LDMC x RDMC
+
+LDMC_RDMC <- ggplot(traits, aes(x = LDMC_leaf, y = root_dry_matter_cont, color = Association)) +
+  geom_point(size = 3, aes(shape = Host_ID)) +
+  geom_smooth(method = "lm", se = TRUE, alpha = 0.2) +
+  theme_minimal() +
+  scale_color_manual(values = c("AM" = "#dc267f", "DUAL" = "#648fff", "EM" = "#ffb000"), name = "Mycorrhizal\nAssociation") + 
+  scale_shape_manual(
+    values = c("ABAM" = 21, "ABGR" = 22, "ALRU" = 23, "CONU" = 24, "TABR" = 25, "THPL" = 7, "TSHE" = 8), name = "Focal Species") +
+  labs(title = "", x = "LDMC (mg/g)", y = "RDMC (mg/g)") + 
+  theme(legend.position = "right")  +
+  theme(legend.title = element_text(colour="black", size=12, face="bold")) +
+  theme(legend.text = element_text(colour="black", size = 11)) + 
+  theme(
+    axis.text.x = element_text(size = 11, colour="black"),
+    axis.text.y = element_text(size = 11, colour="black"),
+    axis.title.y = element_text(size = 12, colour="black"),
+    axis.title.x = element_text(size = 12, colour="black"))
+
+LDMC_RDMC
+
+
+
+
+## Can do more here, and could switch these to be elipses instead to show more species variation, 
+# rather than doing it by mycorrhizal association. 
+
+
+
+###### OPTIONAL #########
 
 #check the spread of the raw trait data 
 summary(traits_tree)
@@ -297,7 +432,6 @@ loadings.alltraits = alltraits.pca$rotation
 trait.names.alltraits = colnames(traits[5:21])
 scores.alltraits = as.data.frame(alltraits.pca$x)
 scores.alltraits$WFDP_Code = traits$WFDP_Code
-scores.alltraits$Host_ID = traits$Host_ID
 summary(alltraits.pca)
 
 # Save loadings for all traits
@@ -315,6 +449,8 @@ loadings.alltraits <- as.data.frame(loadings.alltraits)
 pca_var <- alltraits.pca$sdev^2  # Eigenvalues (variance of each PC)
 pca_var_explained <- pca_var / sum(pca_var) * 100  # Convert to percentage
 
+#Merge in mycorrhizal association for plotting 
+scores.alltraits <- merge(scores.alltraits, env, by = "WFDP_Code")
 
 # Change loadings names to something cleaner 
 new_loadings <- c("SLA", "LDMC", "LMA", "Leaf_PctN", "Leaf_PctC", "Leaf_CN", "Leaf_d15N", 
@@ -322,30 +458,28 @@ new_loadings <- c("SLA", "LDMC", "LMA", "Leaf_PctN", "Leaf_PctC", "Leaf_CN", "Le
                   "Root_d15N", "Root_d13C", "RD", "Root_PctN", "Root_PctC")
 rownames(loadings.alltraits) <- new_loadings
 
-
-PCA_plot <- ggplot(scores.alltraits, aes(x = PC1, y = PC2, color = Host_ID)) +
-  geom_point(size = 3) +
+PCA_plot <- ggplot(scores.alltraits, aes(x = PC1, y = PC2, color = Association)) +
+  geom_point(size = 3, aes(shape = Host_ID)) +
   geom_segment(data = loadings.alltraits, aes(x = 0, y = 0, xend = PC1 * 10, yend = PC2 * 10),
                arrow = arrow(length = unit(0.2, "cm")), color = "black") + 
   geom_text_repel(data = loadings.alltraits, aes(x = PC1 * 11, y = PC2 * 11, label = rownames(loadings.alltraits)),
-                  color = "black", size = 4, max.overlaps = 10) +
+                  color = "black", size = 5, max.overlaps = 10) +
   theme_minimal() +
-  scale_colour_manual(values=all_hosts, 
-                      name="Host Species",
-                      breaks=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE"),
-                      labels=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE")) +
+  scale_color_manual(values = c("AM" = "#dc267f", "DUAL" = "#648fff", "EM" = "#ffb000"), name = "Mycorrhizal\nAssociation") + 
+  scale_shape_manual(
+    values = c("ABAM" = 21, "ABGR" = 22, "ALRU" = 23, "CONU" = 24, "TABR" = 25, "THPL" = 7, "TSHE" = 8), name = "Focal Species") +
   labs(title = "",
        x = paste0("PC1 (", round(pca_var_explained[1], 1), "%)"),
        y = paste0("PC2 (", round(pca_var_explained[2], 1), "%)"), 
-       color = "Host Species") +
+       color = "Focal Species") +
   theme(legend.position = "right")  +
-  theme(legend.title = element_text(colour="black", size=12, face="bold")) +
-  theme(legend.text = element_text(colour="black", size = 11)) + 
+  theme(legend.title = element_text(colour="black", size=14, face="bold")) +
+  theme(legend.text = element_text(colour="black", size = 14)) + 
   theme(
-    axis.text.x = element_text(size = 11, colour="black"),
-    axis.text.y = element_text(size = 11, colour="black"),
-    axis.title.y = element_text(size = 12, colour="black"),
-    axis.title.x = element_text(size = 12, colour="black"))
+    axis.text.x = element_text(size = 14, colour="black"),
+    axis.text.y = element_text(size = 14, colour="black"),
+    axis.title.y = element_text(size = 14, colour="black"),
+    axis.title.x = element_text(size = 14, colour="black"))
 
 PCA_plot
 
@@ -476,30 +610,34 @@ scores.leaf <- merge(scores.leaf, env, by = "WFDP_Code")
 new_loadings <- c("SLA", "LDMC", "LMA", "PctN", "PctC", "C:N", "d15N", "d13C")
 rownames(loadings.leaf) <- new_loadings
 
+
+## Removing legend from all plots to save for formatting 
+
+
 # Visualize
 PCA_plot_leaf <- ggplot(scores.leaf, aes(x = PC1, y = PC2, color = Association)) +
   geom_point(size = 3, aes(shape = Host_ID)) +
   geom_segment(data = loadings.leaf, aes(x = 0, y = 0, xend = PC1 * 10, yend = PC2 * 10),
                arrow = arrow(length = unit(0.2, "cm")), color = "black") + 
   geom_text_repel(data = loadings.leaf, aes(x = PC1 * 11, y = PC2 * 11, label = rownames(loadings.leaf)),
-                  color = "black", size = 4, max.overlaps = 10) +
+                  color = "black", size = 5, max.overlaps = 10) +
   theme_minimal() +
-  scale_color_manual(values = c("AM" = "#dc267f", "DUAL" = "#648fff", "EM" = "#ffb000"), name = "Mycorrhizal Association") + 
+  scale_color_manual(values = c("AM" = "#dc267f", "DUAL" = "#648fff", "EM" = "#ffb000"), name = "Mycorrhizal\nAssociation") + 
   scale_shape_manual(
-    values = c("ABAM" = 21, "ABGR" = 22, "ALRU" = 23, "CONU" = 24, "TABR" = 25, "THPL" = 7, "TSHE" = 8), name = "Host Species") +
+    values = c("ABAM" = 21, "ABGR" = 22, "ALRU" = 23, "CONU" = 24, "TABR" = 25, "THPL" = 7, "TSHE" = 8), name = "Focal Species") +
   labs(title = "",
        x = paste0("PC1 (", round(pca_var_explained[1], 1), "%)"),
        y = paste0("PC2 (", round(pca_var_explained[2], 1), "%)"), 
        color = "Host Species") +
-  theme(legend.position = "right")  +
-  theme(legend.title = element_text(colour="black", size=12, face="bold")) +
-  theme(legend.text = element_text(colour="black", size = 11)) + 
+  theme(legend.position = "none")  +
+  theme(legend.title = element_text(colour="black", size=16, face="bold")) +
+  theme(legend.text = element_text(colour="black", size = 16)) + 
   theme(
-  axis.text.x = element_text(size = 11, colour="black"),
-  axis.text.y = element_text(size = 11, colour="black"),
-  axis.title.y = element_text(size = 12, colour="black"),
-  axis.title.x = element_text(size = 12, colour="black"), 
-  strip.text = element_text(size = 12, colour="black"))
+  axis.text.x = element_text(size = 16, colour="black"),
+  axis.text.y = element_text(size = 16, colour="black"),
+  axis.title.y = element_text(size = 16, colour="black"),
+  axis.title.x = element_text(size = 16, colour="black"), 
+  strip.text = element_text(size = 16, colour="black"))
 
 PCA_plot_leaf
 
@@ -554,27 +692,27 @@ tuk_PC1_leaf
 
 
 # diff        lwr        upr     p adj
-# ABGR-ABAM  0.16268695 -1.0966228  1.4219967 0.9996720
-# ALRU-ABAM  5.68653124  4.3508315  7.0222310 0.0000000
-# CONU-ABAM  5.58763194  4.4970377  6.6782262 0.0000000
-# TABR-ABAM  2.12042740  0.9999483  3.2409065 0.0000076
-# THPL-ABAM  0.70461331 -0.3859810  1.7952076 0.4392132
-# TSHE-ABAM  1.31125112  0.2206569  2.4018454 0.0091466
-# ALRU-ABGR  5.52384429  4.0471727  7.0005159 0.0000000
-# CONU-ABGR  5.42494499  4.1656352  6.6842548 0.0000000
-# TABR-ABGR  1.95774045  0.6724628  3.2430181 0.0004033
-# THPL-ABGR  0.54192636 -0.7173834  1.8012361 0.8401720
-# TSHE-ABGR  1.14856417 -0.1107456  2.4078739 0.0956199
-# CONU-ALRU -0.09889929 -1.4345990  1.2368004 0.9999875
-# TABR-ALRU -3.56610384 -4.9263139 -2.2058938 0.0000000
-# THPL-ALRU -4.98191793 -6.3176177 -3.6462182 0.0000000
-# TSHE-ALRU -4.37528012 -5.7109799 -3.0395804 0.0000000
-# TABR-CONU -3.46720455 -4.5876836 -2.3467255 0.0000000
-# THPL-CONU -4.88301863 -5.9736129 -3.7924244 0.0000000
-# TSHE-CONU -4.27638083 -5.3669751 -3.1857866 0.0000000
-# THPL-TABR -1.41581409 -2.5362932 -0.2953350 0.0052176
-# TSHE-TABR -0.80917628 -1.9296554  0.3113028 0.3062035
-# TSHE-THPL  0.60663781 -0.4839565  1.6972321 0.6161183
+# ABGR-ABAM  0.16166915 -1.0958287  1.4191670 0.9996811
+# ALRU-ABAM  5.68781200  4.3540341  7.0215898 0.0000000
+# CONU-ABAM  5.58953827  4.5005132  6.6785633 0.0000000
+# TABR-ABAM  2.11737052  0.9985036  3.2362374 0.0000076
+# THPL-ABAM  0.70377152 -0.3852535  1.7927966 0.4389146
+# TSHE-ABAM  1.31822662  0.2292016  2.4072517 0.0084988
+# ALRU-ABGR  5.52614285  4.0515960  7.0006897 0.0000000
+# CONU-ABGR  5.42786911  4.1703713  6.6853669 0.0000000
+# TABR-ABGR  1.95570137  0.6722730  3.2391297 0.0004008
+# THPL-ABGR  0.54210237 -0.7153955  1.7996002 0.8390672
+# TSHE-ABGR  1.15655747 -0.1009403  2.4140553 0.0905886
+# CONU-ALRU -0.09827373 -1.4320516  1.2355041 0.9999878
+# TABR-ALRU -3.57044148 -4.9286944 -2.2121886 0.0000000
+# THPL-ALRU -4.98404048 -6.3178183 -3.6502626 0.0000000
+# TSHE-ALRU -4.36958538 -5.7033632 -3.0358075 0.0000000
+# TABR-CONU -3.47216775 -4.5910346 -2.3533009 0.0000000
+# THPL-CONU -4.88576675 -5.9747918 -3.7967417 0.0000000
+# TSHE-CONU -4.27131164 -5.3603367 -3.1822866 0.0000000
+# THPL-TABR -1.41359900 -2.5324659 -0.2947321 0.0052253
+# TSHE-TABR -0.79914390 -1.9180108  0.3197230 0.3188954
+# TSHE-THPL  0.61445510 -0.4745700  1.7034802 0.6002402
 
 
 
@@ -583,16 +721,17 @@ PC1_leaf_plot <- ggplot(PC1_leaf_summary, aes(x = Host_ID, y = mean_PC1, fill = 
   geom_col() +
   geom_errorbar(aes(ymin = mean_PC1 - se_PC1, ymax = mean_PC1 + se_PC1), width = 0.2) +
   theme_minimal() +
-  scale_fill_manual(values = c("AM" = "#dc267f", "DUAL" = "#648fff", "EM" = "#ffb000"), name = "Mycorrhizal Association") + 
+  scale_fill_manual(values = c("AM" = "#dc267f", "DUAL" = "#648fff", "EM" = "#ffb000"), name = "Mycorrhizal\nAssociation") + 
   labs(title = "", x = "", y = "PCA Axis 1 - LES") +
-  theme(legend.title = element_text(colour="black", size=12, face="bold")) +
-  theme(legend.text = element_text(colour="black", size = 11)) + 
+  theme(legend.position = "none")  +
+  theme(legend.title = element_text(colour="black", size=16, face="bold")) +
+  theme(legend.text = element_text(colour="black", size = 16)) + 
   theme(
-    axis.text.x = element_text(size = 11, colour="black"),
-    axis.text.y = element_text(size = 11, colour="black"),
-    axis.title.y = element_text(size = 12, colour="black"),
-    axis.title.x = element_text(size = 12, colour="black"), 
-    strip.text = element_text(size = 12, colour="black"))
+    axis.text.x = element_text(size = 16, colour="black"),
+    axis.text.y = element_text(size = 16, colour="black"),
+    axis.title.y = element_text(size = 16, colour="black"),
+    axis.title.x = element_text(size = 16, colour="black"), 
+    strip.text = element_text(size = 16, colour="black"))
 
 PC1_leaf_plot
 
@@ -633,43 +772,44 @@ tuk_PC2_leaf
 
 
 # diff         lwr        upr     p adj
-# ABGR-ABAM  0.10680364 -0.85884546  1.0724527 0.9998670
-# ALRU-ABAM -0.83095384 -1.85517938  0.1932717 0.1852557
-# CONU-ABAM  0.09424538 -0.74203127  0.9305220 0.9998516
-# TABR-ABAM -2.64582128 -3.50501386 -1.7866287 0.0000000
-# THPL-ABAM -1.52355347 -2.35983011 -0.6872768 0.0000166
-# TSHE-ABAM -0.05215977 -0.88843642  0.7841169 0.9999955
-# ALRU-ABGR -0.93775748 -2.07008141  0.1945665 0.1669306
-# CONU-ABGR -0.01255826 -0.97820735  0.9530908 1.0000000
-# TABR-ABGR -2.75262492 -3.73818640 -1.7670634 0.0000000
-# THPL-ABGR -1.63035710 -2.59600620 -0.6647080 0.0000707
-# TSHE-ABGR -0.15896341 -1.12461251  0.8066857 0.9986890
-# CONU-ALRU  0.92519922 -0.09902631  1.9494248 0.1016337
-# TABR-ALRU -1.81486744 -2.85788767 -0.7718472 0.0000405
-# THPL-ALRU -0.69259962 -1.71682516  0.3316259 0.3837488
-# TSHE-ALRU  0.77879407 -0.24543146  1.8030196 0.2493788
-# TABR-CONU -2.74006666 -3.59925924 -1.8808741 0.0000000
-# THPL-CONU -1.61779885 -2.45407549 -0.7815222 0.0000048
-# TSHE-CONU -0.14640515 -0.98268180  0.6898715 0.9981469
-# THPL-TABR  1.12226782  0.26307524  1.9814604 0.0034928
-# TSHE-TABR  2.59366151  1.73446893  3.4528541 0.0000000
-# TSHE-THPL  1.47139369  0.63511704  2.3076703 0.0000328
+# ABGR-ABAM  0.10842076 -0.8575181  1.0743596 0.9998550
+# ALRU-ABAM -0.83219454 -1.8567274  0.1923383 0.1841661
+# CONU-ABAM  0.09165061 -0.7448770  0.9281782 0.9998741
+# TABR-ABAM -2.64568851 -3.5051389 -1.7862381 0.0000000
+# THPL-ABAM -1.52220562 -2.3587332 -0.6856781 0.0000170
+# TSHE-ABAM -0.05163324 -0.8881608  0.7848943 0.9999957
+# ALRU-ABGR -0.94061530 -2.0732790  0.1920484 0.1645681
+# CONU-ABGR -0.01677016 -0.9827090  0.9491687 1.0000000
+# TABR-ABGR -2.75410927 -3.7399665 -1.7682521 0.0000000
+# THPL-ABGR -1.63062639 -2.5965652 -0.6646876 0.0000709
+# TSHE-ABGR -0.16005401 -1.1259928  0.8058848 0.9986397
+# CONU-ALRU  0.92384514 -0.1006877  1.9483780 0.1027620
+# TABR-ALRU -1.81349397 -2.8568271 -0.7701608 0.0000413
+# THPL-ALRU -0.69001109 -1.7145439  0.3345218 0.3886374
+# TSHE-ALRU  0.78056129 -0.2439715  1.8050941 0.2473032
+# TABR-CONU -2.73733912 -3.5967895 -1.8778887 0.0000000
+# THPL-CONU -1.61385623 -2.4503838 -0.7773287 0.0000051
+# TSHE-CONU -0.14328385 -0.9798114  0.6932437 0.9983606
+# THPL-TABR  1.12348289  0.2640325  1.9829333 0.0034590
+# TSHE-TABR  2.59405527  1.7346049  3.4535056 0.0000000
+# TSHE-THPL  1.47057238  0.6340448  2.3070999 0.0000333
 
 # Visualize 
 PC2_leaf_plot <- ggplot(PC2_leaf_summary, aes(x = Host_ID, y = mean_PC2, fill = Association)) +
   geom_col() +
   geom_errorbar(aes(ymin = mean_PC2 - se_PC2, ymax = mean_PC2 + se_PC2), width = 0.2) +
   theme_minimal() +
-  scale_fill_manual(values = c("AM" = "#dc267f", "DUAL" = "#648fff", "EM" = "#ffb000"), name = "Mycorrhizal Association") + 
+  scale_fill_manual(values = c("AM" = "#dc267f", "DUAL" = "#648fff", "EM" = "#ffb000"), name = "Mycorrhizal\nAssociation") + 
   labs(title = "", x = "", y = "PCA Axis 2") +
-  theme(legend.title = element_text(colour="black", size=12, face="bold")) +
-  theme(legend.text = element_text(colour="black", size = 11)) + 
+  theme(legend.position = "none")  +
+  theme(legend.title = element_text(colour="black", size=16, face="bold")) +
+  theme(legend.text = element_text(colour="black", size = 16)) + 
   theme(
-    axis.text.x = element_text(size = 11, colour="black"),
-    axis.text.y = element_text(size = 11, colour="black"),
-    axis.title.y = element_text(size = 12, colour="black"),
-    axis.title.x = element_text(size = 12, colour="black"), 
-    strip.text = element_text(size = 12, colour="black"))
+    axis.text.x = element_text(size = 16, colour="black"),
+    axis.text.y = element_text(size = 16, colour="black"),
+    axis.title.y = element_text(size = 16, colour="black"),
+    axis.title.x = element_text(size = 16, colour="black"), 
+    strip.text = element_text(size = 16, colour="black"))
 
 PC2_leaf_plot
 
@@ -730,24 +870,24 @@ PCA_plot_root <- ggplot(scores.root, aes(x = PC1, y = PC2, color = Association))
   geom_segment(data = loadings.root, aes(x = 0, y = 0, xend = PC1 * 10, yend = PC2 * 10),
                arrow = arrow(length = unit(0.2, "cm")), color = "black") + 
   geom_text_repel(data = loadings.root, aes(x = PC1 * 11, y = PC2 * 11, label = rownames(loadings.root)),
-                  color = "black", size = 4, max.overlaps = 10) +
+                  color = "black", size = 5, max.overlaps = 10) +
   theme_minimal() +
   scale_color_manual(values = c("AM" = "#dc267f", "DUAL" = "#648fff", "EM" = "#ffb000"), name = "Mycorrhizal Association") + 
   scale_shape_manual(
     values = c("ABAM" = 21, "ABGR" = 22, "ALRU" = 23, "CONU" = 24, "TABR" = 25, "THPL" = 7, "TSHE" = 8), name = "Host Species") +
-  labs(title = "Tree Root Traits",
+  labs(title = "",
        x = paste0("PC1 (", round(pca_var_explained[1], 1), "%)"),
        y = paste0("PC2 (", round(pca_var_explained[2], 1), "%)"), 
        color = "Host Species") +
-  theme(legend.position = "right")  +
-  theme(legend.title = element_text(colour="black", size=12, face="bold")) +
-  theme(legend.text = element_text(colour="black", size = 11)) + 
+  theme(legend.position = "none")  +
+  theme(legend.title = element_text(colour="black", size=16, face="bold")) +
+  theme(legend.text = element_text(colour="black", size = 16)) + 
   theme(
-    axis.text.x = element_text(size = 11, colour="black"),
-    axis.text.y = element_text(size = 11, colour="black"),
-    axis.title.y = element_text(size = 12, colour="black"),
-    axis.title.x = element_text(size = 12, colour="black"), 
-    strip.text = element_text(size = 12, colour="black"))
+    axis.text.x = element_text(size = 16, colour="black"),
+    axis.text.y = element_text(size = 16, colour="black"),
+    axis.title.y = element_text(size = 16, colour="black"),
+    axis.title.x = element_text(size = 16, colour="black"), 
+    strip.text = element_text(size = 16, colour="black"))
 
 PCA_plot_root
 
@@ -829,14 +969,15 @@ PC1_root_plot <- ggplot(PC1_root_summary, aes(x = Host_ID, y = mean_PC1, fill = 
   theme_minimal() +
   scale_fill_manual(values = c("AM" = "#dc267f", "DUAL" = "#648fff", "EM" = "#ffb000"), name = "Mycorrhizal Association") + 
   labs(title = "", x = "", y = "PCA Axis 1 - RES") +
-  theme(legend.title = element_text(colour="black", size=12, face="bold")) +
-  theme(legend.text = element_text(colour="black", size = 11)) + 
+  theme(legend.position = "none")  +
+  theme(legend.title = element_text(colour="black", size=16, face="bold")) +
+  theme(legend.text = element_text(colour="black", size = 16)) + 
   theme(
-    axis.text.x = element_text(size = 11, colour="black"),
-    axis.text.y = element_text(size = 11, colour="black"),
-    axis.title.y = element_text(size = 12, colour="black"),
-    axis.title.x = element_text(size = 12, colour="black"), 
-    strip.text = element_text(size = 12, colour="black"))
+    axis.text.x = element_text(size = 16, colour="black"),
+    axis.text.y = element_text(size = 16, colour="black"),
+    axis.title.y = element_text(size = 16, colour="black"),
+    axis.title.x = element_text(size = 16, colour="black"), 
+    strip.text = element_text(size = 16, colour="black"))
 
 PC1_root_plot
 
@@ -882,19 +1023,17 @@ PC2_root_plot <- ggplot(PC2_root_summary, aes(x = Host_ID, y = mean_PC2, fill = 
   theme_minimal() +
   scale_fill_manual(values = c("AM" = "#dc267f", "DUAL" = "#648fff", "EM" = "#ffb000"), name = "Mycorrhizal Association") + 
   labs(title = "", x = "", y = "PCA Axis 2") +
-  theme(legend.title = element_text(colour="black", size=12, face="bold")) +
-  theme(legend.text = element_text(colour="black", size = 11)) + 
+  theme(legend.position = "none")  +
+  theme(legend.title = element_text(colour="black", size=16, face="bold")) +
+  theme(legend.text = element_text(colour="black", size = 16)) + 
   theme(
-    axis.text.x = element_text(size = 11, colour="black"),
-    axis.text.y = element_text(size = 11, colour="black"),
-    axis.title.y = element_text(size = 12, colour="black"),
-    axis.title.x = element_text(size = 12, colour="black"), 
-    strip.text = element_text(size = 12, colour="black"))
+    axis.text.x = element_text(size = 16, colour="black"),
+    axis.text.y = element_text(size = 16, colour="black"),
+    axis.title.y = element_text(size = 16, colour="black"),
+    axis.title.x = element_text(size = 16, colour="black"), 
+    strip.text = element_text(size = 16, colour="black"))
 
 PC2_root_plot
-
-## Need to add significance values to this but they are a bit complicated, 
-# so can come back and do this 
 
 
 #################################################################################
@@ -1003,6 +1142,37 @@ summary(lm_elev2) # NOT SIGNIFICANT
 #################################################################################
 
 ## Score csvs are saved for leaf and root traits already. 
+
+# Save final plots
+
+# All traits plot 
+ggsave("~/Dropbox/WSU/WFDP_Chapter_3_Project/Trait_Data/PCA/all_traits_biplot.png", 
+       plot = PCA_plot, width = 10, height = 8, units = "in", dpi = 300)
+
+# leaf PCA
+ggsave("~/Dropbox/WSU/WFDP_Chapter_3_Project/Trait_Data/PCA/leaf_traits_biplot.png", 
+       plot = PCA_plot_leaf, width = 8, height = 8, units = "in", dpi = 300)
+
+# PC1 leaf bar chart 
+ggsave("~/Dropbox/WSU/WFDP_Chapter_3_Project/Trait_Data/PCA/PC1_leaf_barplot.png", 
+       plot = PC1_leaf_plot, width = 7, height = 8, units = "in", dpi = 300)
+
+# PC2 leaf bar chart 
+ggsave("~/Dropbox/WSU/WFDP_Chapter_3_Project/Trait_Data/PCA/PC2_leaf_barplot.png", 
+       plot = PC2_leaf_plot, width = 7, height = 8, units = "in", dpi = 300)
+
+# root PCA
+ggsave("~/Dropbox/WSU/WFDP_Chapter_3_Project/Trait_Data/PCA/root_traits_biplot.png", 
+       plot = PCA_plot_root, width = 8, height = 8, units = "in", dpi = 300)
+
+# PC1 root bar chart 
+ggsave("~/Dropbox/WSU/WFDP_Chapter_3_Project/Trait_Data/PCA/PC1_root_barplot.png", 
+       plot = PC1_root_plot, width = 7, height = 8, units = "in", dpi = 300)
+
+# PC2 root bar chart 
+ggsave("~/Dropbox/WSU/WFDP_Chapter_3_Project/Trait_Data/PCA/PC2__root_barplot.png", 
+       plot = PC2_root_plot, width = 7, height = 8, units = "in", dpi = 300)
+
 
 ## -- END -- ## 
 
