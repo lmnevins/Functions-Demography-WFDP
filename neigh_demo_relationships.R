@@ -278,9 +278,9 @@ tuk_RGR
 # VISUALIZE COMBINED NEIGHBORHOODS  
 #################################### -- 
 
-## All of these have been edited to only plot the 9m radius neighborhoods
-
-
+## All of these have been edited to only plot the 9m radius neighborhoods, all that needs to be done 
+# to facet by radius is to use the "_summary_all" data file and to add the 'facet_wrap(~ radius, scales = "free_x") +'
+# line after the geom_smooth call 
 
 # Set radius as factor and set order for the facet panels for all graphs 
 crowd_growth_summary_all <- crowd_growth_summary_all %>%
@@ -288,10 +288,9 @@ crowd_growth_summary_all <- crowd_growth_summary_all %>%
 
 
 # Relationship between focal tree RGR and # neighbors 
-RGR_num_neigh <- ggplot(crowd_growth_summary_all, aes(x = num_neighbors, y = mean_RGR, colour = Species)) +
+RGR_num_neigh <- ggplot(crowd_growth_summary_09, aes(x = num_neighbors, y = mean_RGR, colour = Species)) +
   geom_point(alpha = 1, cex = 2.5) +
   geom_smooth(method = "lm", se = TRUE, color = "black") +
-  facet_wrap(~ radius, scales = "free_x") +
   theme_bw() +
   scale_colour_manual(values=all_hosts, 
                       name="Focal Species",
@@ -334,10 +333,9 @@ summary(RGR_mod1_20)
 
 
 # Relationship between focal tree RGR and mean neighbor DBH 
-RGR_size_neigh <- ggplot(crowd_growth_summary_all, aes(x = mean_neighbor_DBH, y = mean_RGR, colour = Species)) +
+RGR_size_neigh <- ggplot(crowd_growth_summary_09, aes(x = mean_neighbor_DBH, y = mean_RGR, colour = Species)) +
   geom_point(alpha = 1, cex = 2.5) +
   geom_smooth(method = "lm", se = TRUE, color = "black") +
-  facet_wrap(~ radius, scales = "free_x") +
   theme_bw() +
   scale_colour_manual(values=all_hosts, 
                       name="Focal Species",
@@ -376,10 +374,9 @@ summary(RGR_mod2_20)
 
 
 # Relationship between focal tree RGR and crowding index
-RGR_crowd_neigh <- ggplot(crowd_growth_summary_all, aes(x = crowding_index, y = mean_RGR, colour = Species)) +
+RGR_crowd_neigh <- ggplot(crowd_growth_summary_09, aes(x = crowding_index, y = mean_RGR, colour = Species)) +
   geom_point(alpha = 1, cex = 2.5) +
   geom_smooth(method = "lm", se = TRUE, color = "black") +
-  facet_wrap(~ radius, scales = "free_x") +
   theme_bw() +
   scale_colour_manual(values=all_hosts, 
                       name="Focal Species",
@@ -424,10 +421,10 @@ con_growth_summary_all <- con_growth_summary_all %>%
   mutate(radius = factor(radius, levels = c("9m", "20m")))
 
 # Relationship between focal tree RGR and # conspecific neighbors 
-RGR_num_con_neigh <- ggplot(con_growth_summary_all, aes(x = num_neighbors, y = mean_RGR, colour = Species)) +
+RGR_num_con_neigh <- ggplot(con_growth_summary_09, aes(x = num_neighbors, y = mean_RGR, colour = Species)) +
   geom_point(alpha = 1, cex = 2.5) +
   geom_smooth(method = "lm", se = TRUE, color = "black") +
-  facet_wrap(~ radius, scales = "free_x") +
+ # facet_wrap(~ radius, scales = "free_x") +
   theme_bw() +
   scale_colour_manual(values=all_hosts, 
                       name="Focal Species",
@@ -466,10 +463,10 @@ summary(RGR_mod_con1_20)
 
 
 # Relationship between focal tree RGR and mean conspecific neighbor DBH 
-RGR_size_con_neigh <- ggplot(con_growth_summary_all, aes(x = mean_neighbor_DBH, y = mean_RGR, colour = Species)) +
+RGR_size_con_neigh <- ggplot(con_growth_summary_09, aes(x = mean_neighbor_DBH, y = mean_RGR, colour = Species)) +
   geom_point(alpha = 1, cex = 2.5) +
   geom_smooth(method = "lm", se = TRUE, color = "black") +
-  facet_wrap(~ radius, scales = "free_x") +
+#  facet_wrap(~ radius, scales = "free_x") +
   theme_bw() +
   scale_colour_manual(values=all_hosts, 
                       name="Focal Species",
@@ -508,10 +505,10 @@ summary(RGR_mod_con_20)
 
 
 # Relationship between focal tree RGR and crowding index
-RGR_crowd_con_neigh <- ggplot(con_growth_summary_all, aes(x = crowding_index, y = mean_RGR, colour = Species)) +
+RGR_crowd_con_neigh <- ggplot(con_growth_summary_09, aes(x = crowding_index, y = mean_RGR, colour = Species)) +
   geom_point(alpha = 1, cex = 2.5) +
   geom_smooth(method = "lm", se = TRUE, color = "black") +
-  facet_wrap(~ radius, scales = "free_x") +
+ # facet_wrap(~ radius, scales = "free_x") +
   theme_bw() +
   scale_colour_manual(values=all_hosts, 
                       name="Focal Species",
@@ -557,10 +554,10 @@ het_growth_summary_all <- het_growth_summary_all %>%
 
 
 # Relationship between focal tree RGR and # heterospecific neighbors 
-RGR_num_het_neigh <- ggplot(het_growth_summary_all, aes(x = num_neighbors, y = mean_RGR, colour = Species)) +
+RGR_num_het_neigh <- ggplot(het_growth_summary_09, aes(x = num_neighbors, y = mean_RGR, colour = Species)) +
   geom_point(alpha = 1, cex = 2.5) +
   geom_smooth(method = "lm", se = TRUE, color = "black") +
-  facet_wrap(~ radius, scales = "free_x") +
+#  facet_wrap(~ radius, scales = "free_x") +
   theme_bw() +
   scale_colour_manual(values=all_hosts, 
                       name="Focal Species",
@@ -600,10 +597,10 @@ summary(RGR_mod_het1_20)
 
 
 # Relationship between focal tree RGR and mean heterospecific neighbor DBH 
-RGR_size_het_neigh <- ggplot(het_growth_summary_all, aes(x = mean_neighbor_DBH, y = mean_RGR, colour = Species)) +
+RGR_size_het_neigh <- ggplot(het_growth_summary_09, aes(x = mean_neighbor_DBH, y = mean_RGR, colour = Species)) +
   geom_point(alpha = 1, cex = 2.5) +
   geom_smooth(method = "lm", se = TRUE, color = "black") +
-  facet_wrap(~ radius, scales = "free_x") +
+ # facet_wrap(~ radius, scales = "free_x") +
   theme_bw() +
   scale_colour_manual(values=all_hosts, 
                       name="Focal Species",
@@ -643,10 +640,10 @@ summary(RGR_mod_het2_20)
 
 
 # Relationship between focal tree RGR and crowding index
-RGR_crowd_het_neigh <- ggplot(het_growth_summary_all, aes(x = crowding_index, y = mean_RGR, colour = Species)) +
+RGR_crowd_het_neigh <- ggplot(het_growth_summary_09, aes(x = crowding_index, y = mean_RGR, colour = Species)) +
   geom_point(alpha = 1, cex = 2.5) +
   geom_smooth(method = "lm", se = TRUE, color = "black") +
-  facet_wrap(~ radius, scales = "free_x") +
+ # facet_wrap(~ radius, scales = "free_x") +
   theme_bw() +
   scale_colour_manual(values=all_hosts, 
                       name="Focal Species",
@@ -689,11 +686,13 @@ summary(RGR_mod_het3_20)
 het_growth_summary_no_outlier <- het_growth_summary_all %>% filter(focal_cell != "H30") %>% droplevels()
 
 
+het_growth_summary_no_outlier_09 <- het_growth_summary_09 %>% filter(focal_cell != "H30") %>% droplevels()
+
 # Visualize again without outlier 
-RGR_crowd_het_neigh_no_outlier <- ggplot(het_growth_summary_no_outlier, aes(x = crowding_index, y = mean_RGR, colour = Species)) +
+RGR_crowd_het_neigh_no_outlier <- ggplot(het_growth_summary_no_outlier_09, aes(x = crowding_index, y = mean_RGR, colour = Species)) +
   geom_point(alpha = 1, cex = 2.5) +
   geom_smooth(method = "lm", se = TRUE, color = "black") +
-  facet_wrap(~ radius, scales = "free_x") +
+#  facet_wrap(~ radius, scales = "free_x") +
   theme_bw() +
   scale_colour_manual(values=all_hosts, 
                       name="Focal Species",
@@ -783,16 +782,16 @@ same_myco_growth_summary_all <- same_myco_growth_summary_all %>%
 
 
 # Relationship between focal tree RGR and # same mycorrhizal neighbors 
-RGR_num_same_myco_neigh <- ggplot(same_myco_growth_summary_all, aes(x = num_neighbors, y = mean_RGR, colour = Species)) +
+RGR_num_same_myco_neigh <- ggplot(same_myco_growth_summary_09, aes(x = num_neighbors, y = mean_RGR, colour = Species)) +
   geom_point(alpha = 1, cex = 2.5) +
   geom_smooth(method = "lm", se = TRUE, color = "black") +
-  facet_wrap(~ radius, scales = "free_x") +
+ # facet_wrap(~ radius, scales = "free_x") +
   theme_bw() +
   scale_colour_manual(values=all_hosts, 
                       name="Focal Species",
                       breaks=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE"),
                       labels=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE")) +
-  labs(x = "Number of Same Mycorrhizal Neighbors", y = expression("Mean RGR ("*yr^{-1}*")")) +
+  labs(x = "Number of Con-Mycorrhizal Neighbors", y = expression("Mean RGR ("*yr^{-1}*")")) +
   theme(
     axis.text.x = element_text(size = 11, colour="black"),
     axis.text.y = element_text(size = 11, colour="black"),
@@ -826,16 +825,16 @@ summary(RGR_mod_same_myco1_20)
 
 
 # Relationship between focal tree RGR and mean same mycorrhizal neighbor DBH 
-RGR_size_same_myco_neigh <- ggplot(same_myco_growth_summary_all, aes(x = mean_neighbor_DBH, y = mean_RGR, colour = Species)) +
+RGR_size_same_myco_neigh <- ggplot(same_myco_growth_summary_09, aes(x = mean_neighbor_DBH, y = mean_RGR, colour = Species)) +
   geom_point(alpha = 1, cex = 2.5) +
   geom_smooth(method = "lm", se = TRUE, color = "black") +
-  facet_wrap(~ radius, scales = "free_x") +
+#  facet_wrap(~ radius, scales = "free_x") +
   theme_bw() +
   scale_colour_manual(values=all_hosts, 
                       name="Focal Species",
                       breaks=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE"),
                       labels=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE")) +
-  labs(x = "Mean Same Mycorrhizal Neighbor DBH", y = expression("Mean RGR ("*yr^{-1}*")")) +
+  labs(x = "Mean Con-Mycorrhizal Neighbor DBH", y = expression("Mean RGR ("*yr^{-1}*")")) +
   theme(
     axis.text.x = element_text(size = 11, colour="black"),
     axis.text.y = element_text(size = 11, colour="black"),
@@ -869,16 +868,16 @@ summary(RGR_mod_same_myco2_20)
 
 
 # Relationship between focal tree RGR and crowding index
-RGR_crowd_same_myco_neigh <- ggplot(same_myco_growth_summary_all, aes(x = crowding_index, y = mean_RGR, colour = Species)) +
+RGR_crowd_same_myco_neigh <- ggplot(same_myco_growth_summary_09, aes(x = crowding_index, y = mean_RGR, colour = Species)) +
   geom_point(alpha = 1, cex = 2.5) +
   geom_smooth(method = "lm", se = TRUE, color = "black") +
-  facet_wrap(~ radius, scales = "free_x") +
+ # facet_wrap(~ radius, scales = "free_x") +
   theme_bw() +
   scale_colour_manual(values=all_hosts, 
                       name="Focal Species",
                       breaks=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE"),
                       labels=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE")) +
-  labs(x = "Crowding Index - Same Mycorrhizal Neighborhoods", y = expression("Mean RGR ("*yr^{-1}*")")) +
+  labs(x = "Con-Mycorrhizal Crowding Index", y = expression("Mean RGR ("*yr^{-1}*")")) +
   theme(
     axis.text.x = element_text(size = 11, colour="black"),
     axis.text.y = element_text(size = 11, colour="black"),
@@ -919,16 +918,16 @@ diff_myco_growth_summary_all <- diff_myco_growth_summary_all %>%
 
 
 # Relationship between focal tree RGR and different mycorrhizal neighbors 
-RGR_num_diff_myco_neigh <- ggplot(diff_myco_growth_summary_all, aes(x = num_neighbors, y = mean_RGR, colour = Species)) +
+RGR_num_diff_myco_neigh <- ggplot(diff_myco_growth_summary_09, aes(x = num_neighbors, y = mean_RGR, colour = Species)) +
   geom_point(alpha = 1, cex = 2.5) +
   geom_smooth(method = "lm", se = TRUE, color = "black") +
-  facet_wrap(~ radius, scales = "free_x") +
+ # facet_wrap(~ radius, scales = "free_x") +
   theme_bw() +
   scale_colour_manual(values=all_hosts, 
                       name="Focal Species",
                       breaks=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE"),
                       labels=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE")) +
-  labs(x = "Number of Different Mycorrhizal Neighbors", y = expression("Mean RGR ("*yr^{-1}*")")) +
+  labs(x = "Number of Hetero-Mycorrhizal Neighbors", y = expression("Mean RGR ("*yr^{-1}*")")) +
   theme(
     axis.text.x = element_text(size = 11, colour="black"),
     axis.text.y = element_text(size = 11, colour="black"),
@@ -962,16 +961,16 @@ summary(RGR_mod_diff_myco1_20)
 
 
 # Relationship between focal tree RGR and mean different mycorrhizal neighbor DBH 
-RGR_size_diff_myco_neigh <- ggplot(diff_myco_growth_summary_all, aes(x = mean_neighbor_DBH, y = mean_RGR, colour = Species)) +
+RGR_size_diff_myco_neigh <- ggplot(diff_myco_growth_summary_09, aes(x = mean_neighbor_DBH, y = mean_RGR, colour = Species)) +
   geom_point(alpha = 1, cex = 2.5) +
   geom_smooth(method = "lm", se = TRUE, color = "black") +
-  facet_wrap(~ radius, scales = "free_x") +
+ # facet_wrap(~ radius, scales = "free_x") +
   theme_bw() +
   scale_colour_manual(values=all_hosts, 
                       name="Focal Species",
                       breaks=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE"),
                       labels=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE")) +
-  labs(x = "Mean Different Mycorrhizal Neighbor DBH", y = expression("Mean RGR ("*yr^{-1}*")")) +
+  labs(x = "Mean Hetero-Mycorrhizal Neighbor DBH", y = expression("Mean RGR ("*yr^{-1}*")")) +
   theme(
     axis.text.x = element_text(size = 11, colour="black"),
     axis.text.y = element_text(size = 11, colour="black"),
@@ -1005,16 +1004,16 @@ summary(RGR_mod_diff_myco2_20)
 
 
 # Relationship between focal tree RGR and crowding index
-RGR_crowd_diff_myco_neigh <- ggplot(diff_myco_growth_summary_all, aes(x = crowding_index, y = mean_RGR, colour = Species)) +
+RGR_crowd_diff_myco_neigh <- ggplot(diff_myco_growth_summary_09, aes(x = crowding_index, y = mean_RGR, colour = Species)) +
   geom_point(alpha = 1, cex = 2.5) +
   geom_smooth(method = "lm", se = TRUE, color = "black") +
-  facet_wrap(~ radius, scales = "free_x") +
+ # facet_wrap(~ radius, scales = "free_x") +
   theme_bw() +
   scale_colour_manual(values=all_hosts, 
                       name="Focal Species",
                       breaks=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE"),
                       labels=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE")) +
-  labs(x = "Crowding Index - Different Mycorrhizal Neighborhoods", y = expression("Mean RGR ("*yr^{-1}*")")) +
+  labs(x = "Hetero-Mycorrhizal Crowding Index", y = expression("Mean RGR ("*yr^{-1}*")")) +
   theme(
     axis.text.x = element_text(size = 11, colour="black"),
     axis.text.y = element_text(size = 11, colour="black"),
@@ -1050,18 +1049,21 @@ summary(RGR_mod_diff_myco3_20)
 # Being impacted by the outlier THPL again 
 diff_myco_growth_summary_no_outlier <- diff_myco_growth_summary_all %>% filter(focal_cell != "H30") %>% droplevels()
 
+diff_myco_growth_summary_no_outlier_09 <- diff_myco_growth_summary_09 %>% filter(focal_cell != "H30") %>% droplevels()
+
+
 
 # Visualize again without outlier 
-RGR_crowd_diff_myco_no_outlier <- ggplot(diff_myco_growth_summary_no_outlier, aes(x = crowding_index, y = mean_RGR, colour = Species)) +
+RGR_crowd_diff_myco_no_outlier <- ggplot(diff_myco_growth_summary_no_outlier_09, aes(x = crowding_index, y = mean_RGR, colour = Species)) +
   geom_point(alpha = 1, cex = 2.5) +
   geom_smooth(method = "lm", se = TRUE, color = "black") +
-  facet_wrap(~ radius, scales = "free_x") +
+ # facet_wrap(~ radius, scales = "free_x") +
   theme_bw() +
   scale_colour_manual(values=all_hosts, 
                       name="Focal Species",
                       breaks=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE"),
                       labels=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE")) +
-  labs(x = "Crowding Index - Different Mycorrhizal Neighborhoods", y = expression("Mean RGR ("*yr^{-1}*")")) +
+  labs(x = "Hetero-Mycorrhizal Crowding Index", y = expression("Mean RGR ("*yr^{-1}*")")) +
   theme(
     axis.text.x = element_text(size = 11, colour="black"),
     axis.text.y = element_text(size = 11, colour="black"),
@@ -1160,6 +1162,10 @@ con_het_plots <- plot_grid(RGR_num_con_neigh, RGR_num_het_neigh, RGR_size_con_ne
 
 con_het_plots
 
+# Save figure 
+ggsave("~/Dropbox/WSU/WFDP_Chapter_3_Project/Demography/Figures/con-het_neigh_RGR_plots.png", 
+       plot = con_het_plots, width = 7.5, height = 8, units = "in", dpi = 300)
+
 
 # Same vs different mycorrhizal association plots 
 same_diff_myco_plots <- plot_grid(RGR_num_same_myco_neigh, RGR_num_diff_myco_neigh, 
@@ -1167,9 +1173,12 @@ same_diff_myco_plots <- plot_grid(RGR_num_same_myco_neigh, RGR_num_diff_myco_nei
                                   RGR_crowd_same_myco_neigh, RGR_crowd_diff_myco_neigh,
                                   ncol = 2, nrow = 3, labels = c('(a)', '(b)', '(c)', '(d)', 
                                                                  '(e)', '(f)'))
-
 same_diff_myco_plots
 
+
+# Save figure 
+ggsave("~/Dropbox/WSU/WFDP_Chapter_3_Project/Demography/Figures/myco_neigh_RGR_plots.png", 
+       plot = same_diff_myco_plots, width = 7.5, height = 8, units = "in", dpi = 300)
 
 
 # Gather the plots for the supplement to visualize the effects of removing the THPL with the high outlier CI value 
@@ -1177,6 +1186,11 @@ outlier_plots <- plot_grid(RGR_crowd_het_neigh, RGR_crowd_het_neigh_no_outlier, 
                            RGR_crowd_diff_myco_no_outlier, nrow = 2, ncol = 2, labels = c('(a)', '(b)', '(c)', '(d)'))
 
 outlier_plots
+
+
+# Save figure 
+ggsave("~/Dropbox/WSU/WFDP_Chapter_3_Project/Demography/Figures/outlier_neigh_RGR_plots.png", 
+       plot = outlier_plots, width = 7, height = 6, units = "in", dpi = 300)
 
 
 ## -- END -- ## 
