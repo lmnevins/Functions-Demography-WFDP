@@ -80,6 +80,69 @@ check_plot
 # environmental variation across WFDP, and the tests for spatial autocorrelation. 
 
 
+
+############################
+
+# Right now this is reflecting the 5.2 rotation of the plot relative to true north. For generating figures 
+# (only figures, not for doing any spatial analyses), I want to rotate the plot and point coordinates 
+# to be aligned with true north 
+
+# Rotation helper function 
+rotation <- function(a) {
+  r <- a * pi / 180 # Convert degrees to radians
+  matrix(c(cos(r), sin(r), -sin(r), cos(r)), nrow = 2, ncol = 2)
+}
+
+
+# 1. Get the geometry and its centroid for the plot boundary and the points for dataloggers and soil 
+wfdp_poly_geom <- st_geometry(wfdp_poly)
+wfdp_poly_centroid <- st_centroid(st_union(wfdp_poly_geom))
+
+
+dataloggers_geom <- st_geometry(dataloggers_sf)
+dataloggers_centroid <- st_centroid(st_union(dataloggers_geom))
+
+
+soil_geom <- st_geometry(soil_sf)
+soil_centroid <- st_centroid(st_union(soil_geom))
+
+
+# 2. Apply rotation (5.2 degrees)
+wfdp_poly_rotated_geom <- (wfdp_poly_geom - wfdp_poly_centroid) * rotation(5.2) + wfdp_poly_centroid
+
+dataloggers_rotated_geom <- (dataloggers_geom - dataloggers_centroid) * rotation(5.2) + dataloggers_centroid
+
+soil_rotated_geom <- (soil_geom - soil_centroid) * rotation(5.2) + soil_centroid
+
+
+# 3. Update the sf object with the new geometry
+wfdp_poly_rotated <- st_set_geometry(wfdp_poly, wfdp_poly_rotated_geom)
+
+
+dataloggers_rotated <- st_set_geometry(dataloggers_sf, dataloggers_rotated_geom)
+
+
+soil_rotated <- st_set_geometry(soil_sf, soil_rotated_geom)
+
+
+
+# replot to check 
+check_plot2 <- ggplot() +
+  geom_sf(data = wfdp_poly_rotated, fill = NA, color = "black") +
+  geom_sf(data = dataloggers_rotated, aes(color = "Dataloggers"), size = 2) +
+  geom_sf(data = soil_rotated, aes(color = "Soil samples"), shape = 17, size = 2) +
+  scale_color_manual(values = c("Dataloggers" = "blue", "Soil samples" = "brown")) +
+  theme_minimal() +
+  labs(title = "WFDP sensors and sampling points with rotated geometry", color = "Point type")
+
+check_plot2
+
+
+# NOTE: This essentially breaks the CRS and had converted this back to UTM coordinates. That's okay 
+# because I'm not plotting with the coordinates showing anyways. This is just to get the relative positions 
+# of the trees in the plot and to eachother. 
+
+
 #################################################################################
 
 ######################## --
@@ -530,6 +593,11 @@ dataloggers_sf <- dataloggers_sf %>%
     VWC_mean_percent = VWC_moisture_mean * 100, 
     VWC_range_percent = VWC_moisture_range * 100)
 
+dataloggers_rotated <- dataloggers_rotated %>%
+  dplyr::mutate(
+    VWC_mean_percent = VWC_moisture_mean * 100, 
+    VWC_range_percent = VWC_moisture_range * 100)
+
 
 
 # And for soil data I am interested in a subset of variables - can split into chemical and physical for 
@@ -565,34 +633,39 @@ ggplot_mantel <- function(mant, fill = "gray50") {
              width = diff(mant$plot$hist$breaks)[1],
              fill = fill, color = "gray30") +
     labs(x = mant$plot$hist$xname, y = "Frequency") +
-    scale_x_continuous(limits = mant$plot$xlim) +
+    scale_y_continuous(limits = c(0, 3500)) +
+    scale_x_continuous(limits = c(-0.2, 0.4)) +
     geom_segment(aes(x = mant$obs, xend = mant$obs, y = 0,
                      yend = 0.75 * max(y))) +
     geom_point(aes(x = mant$obs, y = 0.75 * max(y)), size = 5,
                shape = 18) +
     theme_minimal() +
     theme(
-      axis.text.x = element_text(size = 11, colour="black"),
-      axis.text.y = element_text(size = 11, colour="black"),
+      axis.text.x = element_text(size = 12, colour="black"),
+      axis.text.y = element_text(size = 12, colour="black"),
       axis.title.y = element_text(size = 12, colour="black"),
       axis.title.x = element_text(size = 12, colour="black"))
 }
 
 
-
 ## Soil datalogger variables ## ---
+
+
+## Plotting variation across the plot using the rotated geometries 
+
+
 
 # 1. Mean Soil Temp
 
 ## Exploring soil temperature 
 T1_mean_plot <- ggplot() +
-  geom_sf(data = wfdp_poly, fill = NA, color = "black", linewidth = 0.6) +
-  geom_sf(data = dataloggers_sf, aes(color = TMS_T1_mean), size = 3) +
+  geom_sf(data = wfdp_poly_rotated, fill = NA, color = "black", linewidth = 0.6) +
+  geom_sf(data = dataloggers_rotated, aes(color = TMS_T1_mean), size = 3) +
   scale_color_gradient(low = "tan", high = "red4") +
   scale_y_continuous(breaks = scales::pretty_breaks(n = 4)) +
   coord_sf(expand = FALSE) +
   theme_minimal() +
-  labs(color = "Mean Soil Temp (°C)") +
+  labs(color = "Mean Soil\nTemp (°C)") +
   theme(
     legend.position = "right",
     legend.title = element_text(colour="black", size=12, face="bold"),
@@ -675,6 +748,8 @@ mantel_T1_mean <- ggplot_mantel(mc_T1_mean)
 
 mantel_T1_mean
 
+plot(mc_T1_mean)
+
 # Throws some errors, but this plots the same as if you just did plot() so it's okay 
 
 # Vertical line reflects observed value, and the frequency is the distribution of the 
@@ -688,8 +763,8 @@ mantel_T1_mean
 
 ## Exploring the range in soil temperature 
 T1_range_plot <- ggplot() +
-  geom_sf(data = wfdp_poly, fill = NA, color = "black", linewidth = 0.6) +
-  geom_sf(data = dataloggers_sf, aes(color = TMS_T1_range), size = 3) +
+  geom_sf(data = wfdp_poly_rotated, fill = NA, color = "black", linewidth = 0.6) +
+  geom_sf(data = dataloggers_rotated, aes(color = TMS_T1_range), size = 3) +
   scale_color_gradient(low = "tan", high = "red4") +
   scale_y_continuous(breaks = scales::pretty_breaks(n = 4)) +
   coord_sf(expand = FALSE) +
@@ -785,13 +860,13 @@ mantel_T1_range
 
 ## Exploring air temperature 
 T3_mean_plot <- ggplot() +
-  geom_sf(data = wfdp_poly, fill = NA, color = "black", linewidth = 0.6) +
-  geom_sf(data = dataloggers_sf, aes(color = TMS_T3_mean), size = 3) +
+  geom_sf(data = wfdp_poly_rotated, fill = NA, color = "black", linewidth = 0.6) +
+  geom_sf(data = dataloggers_rotated, aes(color = TMS_T3_mean), size = 3) +
   scale_color_gradient(low = "tan", high = "lightblue3") +
   scale_y_continuous(breaks = scales::pretty_breaks(n = 4)) +
   coord_sf(expand = FALSE) +
   theme_minimal() +
-  labs(color = "Mean Air Temp (°C)") +
+  labs(color = "Mean Air\nTemp (°C)") +
   theme(
     legend.position = "right",
     legend.title = element_text(colour="black", size=12, face="bold"),
@@ -882,8 +957,8 @@ mantel_T3_mean
 
 ## Exploring the range in air temperature 
 T3_range_plot <- ggplot() +
-  geom_sf(data = wfdp_poly, fill = NA, color = "black", linewidth = 0.6) +
-  geom_sf(data = dataloggers_sf, aes(color = TMS_T3_range), size = 3) +
+  geom_sf(data = wfdp_poly_rotated, fill = NA, color = "black", linewidth = 0.6) +
+  geom_sf(data = dataloggers_rotated, aes(color = TMS_T3_range), size = 3) +
   scale_color_gradient(low = "tan", high = "lightblue3") +
   scale_y_continuous(breaks = scales::pretty_breaks(n = 4)) +
   coord_sf(expand = FALSE) +
@@ -976,13 +1051,13 @@ mantel_T3_range
 
 ## Exploring soil moisture 
 VWC_mean_plot <- ggplot() +
-  geom_sf(data = wfdp_poly, fill = NA, color = "black", linewidth = 0.6) +
-  geom_sf(data = dataloggers_sf, aes(color = VWC_mean_percent), size = 3) +
+  geom_sf(data = wfdp_poly_rotated, fill = NA, color = "black", linewidth = 0.6) +
+  geom_sf(data = dataloggers_rotated, aes(color = VWC_mean_percent), size = 3) +
   scale_color_gradient(low = "tan", high = "blue4") +
   scale_y_continuous(breaks = scales::pretty_breaks(n = 4)) +
   coord_sf(expand = FALSE) +
   theme_minimal() +
-  labs(color = "Mean Soil Volumetric\n Water Content(%)") +
+  labs(color = "Mean Soil\nVWC (%)") +
   theme(
     legend.position = "right",
     legend.title = element_text(colour="black", size=12, face="bold"),
@@ -1073,13 +1148,13 @@ mantel_VWC_mean
 
 ## Exploring the range in soil VWC
 VWC_range_plot <- ggplot() +
-  geom_sf(data = wfdp_poly, fill = NA, color = "black", linewidth = 0.6) +
-  geom_sf(data = dataloggers_sf, aes(color = VWC_range_percent), size = 3) +
+  geom_sf(data = wfdp_poly_rotated, fill = NA, color = "black", linewidth = 0.6) +
+  geom_sf(data = dataloggers_rotated, aes(color = VWC_range_percent), size = 3) +
   scale_color_gradient(low = "tan", high = "blue4") +
   scale_y_continuous(breaks = scales::pretty_breaks(n = 4)) +
   coord_sf(expand = FALSE) +
   theme_minimal() +
-  labs(color = "Range of Mean Soil\n Volumetric Water\n Content(%)") + #using manual linebreak to wrap text 
+  labs(color = "Range of Mean\nSoil VWC (%)") + #using manual linebreak to wrap text 
   theme(
     legend.position = "right",
     legend.title = element_text(colour="black", size=12, face="bold"),
@@ -1163,21 +1238,19 @@ mantel_VWC_range
 
 
 
-
-
 ## Soil sample variables ## ---
 
 # 1. Soil pH  - 10 cm 
 
 ## Exploring soil pH 10 cm 
 pH_10cm_plot <- ggplot() +
-  geom_sf(data = wfdp_poly, fill = NA, color = "black", linewidth = 0.6) +
-  geom_sf(data = soil_sf, aes(color = pH_10cm), size = 3) +
+  geom_sf(data = wfdp_poly_rotated, fill = NA, color = "black", linewidth = 0.6) +
+  geom_sf(data = soil_rotated, aes(color = pH_10cm), size = 3) +
   scale_color_gradient(low = "tan", high = "purple4") +
   scale_y_continuous(breaks = scales::pretty_breaks(n = 4)) +
   coord_sf(expand = FALSE) +
   theme_minimal() +
-  labs(color = "Soil pH (0-10 cm)") +
+  labs(color = "Soil pH\n(0-10 cm)") +
   theme(
     legend.position = "right",
     legend.title = element_text(colour="black", size=12, face="bold"),
@@ -1265,13 +1338,13 @@ mantel_pH_10cm
 
 ## Exploring soil pH 20 cm 
 pH_20cm_plot <- ggplot() +
-  geom_sf(data = wfdp_poly, fill = NA, color = "black", linewidth = 0.6) +
-  geom_sf(data = soil_sf, aes(color = pH_20cm), size = 3) +
+  geom_sf(data = wfdp_poly_rotated, fill = NA, color = "black", linewidth = 0.6) +
+  geom_sf(data = soil_rotated, aes(color = pH_20cm), size = 3) +
   scale_color_gradient(low = "tan", high = "purple4") +
   scale_y_continuous(breaks = scales::pretty_breaks(n = 4)) +
   coord_sf(expand = FALSE) +
   theme_minimal() +
-  labs(color = "Soil pH (10-20 cm)") +
+  labs(color = "Soil pH\n(10-20 cm)") +
   theme(
     legend.position = "right",
     legend.title = element_text(colour="black", size=12, face="bold"),
@@ -1360,13 +1433,13 @@ mantel_pH_20cm
 
 ## Exploring soil EC 10 cm 
 OM_10cm_plot <- ggplot() +
-  geom_sf(data = wfdp_poly, fill = NA, color = "black", linewidth = 0.6) +
-  geom_sf(data = soil_sf, aes(color = OM_10cm), size = 3) +
+  geom_sf(data = wfdp_poly_rotated, fill = NA, color = "black", linewidth = 0.6) +
+  geom_sf(data = soil_rotated, aes(color = OM_10cm), size = 3) +
   scale_color_gradient(low = "tan", high = "green4") +
   scale_y_continuous(breaks = scales::pretty_breaks(n = 4)) +
   coord_sf(expand = FALSE) +
   theme_minimal() +
-  labs(color = "Soil Organic Matter (%)\n (0-10 cm)") +
+  labs(color = "Soil Organic\nMatter (%)\n(0-10 cm)") +
   theme(
     legend.position = "right",
     legend.title = element_text(colour="black", size=12, face="bold"),
@@ -1454,13 +1527,13 @@ mantel_OM_10cm
 
 ## Exploring soil OM 20 cm 
 OM_20cm_plot <- ggplot() +
-  geom_sf(data = wfdp_poly, fill = NA, color = "black", linewidth = 0.6) +
-  geom_sf(data = soil_sf, aes(color = OM_20cm), size = 3) +
+  geom_sf(data = wfdp_poly_rotated, fill = NA, color = "black", linewidth = 0.6) +
+  geom_sf(data = soil_rotated, aes(color = OM_20cm), size = 3) +
   scale_color_gradient(low = "tan", high = "green4") +
   scale_y_continuous(breaks = scales::pretty_breaks(n = 4)) +
   coord_sf(expand = FALSE) +
   theme_minimal() +
-  labs(color = "Soil Organic Matter (%)\n (10-20 cm)") +
+  labs(color = "Soil Organic\nMatter (%)\n(10-20 cm)") +
   theme(
     legend.position = "right",
     legend.title = element_text(colour="black", size=12, face="bold"),
@@ -1548,13 +1621,13 @@ mantel_OM_20cm
 
 ## Exploring soil percent N 10 cm 
 N_10cm_plot <- ggplot() +
-  geom_sf(data = wfdp_poly, fill = NA, color = "black", linewidth = 0.6) +
-  geom_sf(data = soil_sf, aes(color = PctN_10cm), size = 3) +
+  geom_sf(data = wfdp_poly_rotated, fill = NA, color = "black", linewidth = 0.6) +
+  geom_sf(data = soil_rotated, aes(color = PctN_10cm), size = 3) +
   scale_color_gradient(low = "tan", high = "brown3") +
   scale_y_continuous(breaks = scales::pretty_breaks(n = 4)) +
   coord_sf(expand = FALSE) +
   theme_minimal() +
-  labs(color = "Soil N Content (%)\n (0-10 cm)") +
+  labs(color = "Soil N\nContent (%)\n(0-10 cm)") +
   theme(
     legend.position = "right",
     legend.title = element_text(colour="black", size=12, face="bold"),
@@ -1642,13 +1715,13 @@ mantel_N_10cm
 
 ## Exploring soil N content 20 cm 
 N_20cm_plot <- ggplot() +
-  geom_sf(data = wfdp_poly, fill = NA, color = "black", linewidth = 0.6) +
-  geom_sf(data = soil_sf, aes(color = PctN_20cm), size = 3) +
+  geom_sf(data = wfdp_poly_rotated, fill = NA, color = "black", linewidth = 0.6) +
+  geom_sf(data = soil_rotated, aes(color = PctN_20cm), size = 3) +
   scale_color_gradient(low = "tan", high = "brown3") +
   scale_y_continuous(breaks = scales::pretty_breaks(n = 4)) +
   coord_sf(expand = FALSE) +
   theme_minimal() +
-  labs(color = "Soil N Content (%)\n (10-20 cm)") +
+  labs(color = "Soil N\nContent (%)\n(10-20 cm)") +
   theme(
     legend.position = "right",
     legend.title = element_text(colour="black", size=12, face="bold"),
@@ -1771,11 +1844,23 @@ datalogger_mean_plots <- plot_grid(T1_mean_plot, T3_mean_plot, VWC_mean_plot,
 datalogger_mean_plots
 
 
+# Save Figure
+ggsave("~/Dropbox/WSU/WFDP_Chapter_3_Project/Enviro_Data/Figures/datalogger_mean_plots.png", 
+       plot = datalogger_mean_plots, width = 8, height = 8, units = "in", dpi = 300)
+
+# The file looks a little weird in the folder but it ends up looking really nice in the document. 
+
+
 # datalogger data range plots 
 datalogger_range_plots <- plot_grid(T1_range_plot, T3_range_plot, VWC_range_plot,
                                    ncol = 1, nrow = 3, labels = c('(a)', '(b)', '(c)'))
 
 datalogger_range_plots
+
+
+# Save Figure
+ggsave("~/Dropbox/WSU/WFDP_Chapter_3_Project/Enviro_Data/Figures/datalogger_range_plots.png", 
+       plot = datalogger_range_plots, width = 8, height = 9, units = "in", dpi = 300)
 
 
 # datalogger mean and range Mantel's correlation plots 
@@ -1785,6 +1870,12 @@ datalogger_mantel_plots <- plot_grid(mantel_T1_mean, mantel_T1_range, mantel_T3_
                                    align = "hv", hjust = -0.1)
 
 datalogger_mantel_plots
+
+
+# Save Figure
+ggsave("~/Dropbox/WSU/WFDP_Chapter_3_Project/Enviro_Data/Figures/datalogger_mantel_plots.png", 
+       plot = datalogger_mantel_plots, width = 8, height = 8, units = "in", dpi = 300)
+
 
 
 # soil data plots - do 10 and 20 cm depths separately 
@@ -1797,11 +1888,21 @@ soil_10cm_plots <- plot_grid(pH_10cm_plot, OM_10cm_plot, N_10cm_plot,
 soil_10cm_plots
 
 
+# Save Figure
+ggsave("~/Dropbox/WSU/WFDP_Chapter_3_Project/Enviro_Data/Figures/soil_10cm_plots.png", 
+       plot = soil_10cm_plots, width = 8, height = 8, units = "in", dpi = 300)
+
+
 soil_20cm_plots <- plot_grid(pH_20cm_plot, OM_20cm_plot, N_20cm_plot, 
                              ncol = 1, nrow = 3, labels = c('(a)', '(b)', '(c)'), 
                              align = "hv", hjust = -0.1)
 
 soil_20cm_plots
+
+
+# Save Figure
+ggsave("~/Dropbox/WSU/WFDP_Chapter_3_Project/Enviro_Data/Figures/soil_20cm_plots.png", 
+       plot = soil_20cm_plots, width = 8, height = 8, units = "in", dpi = 300)
 
 
 # soil Mantel's correlation plots 
@@ -1811,3 +1912,11 @@ soil_mantel_plots <- plot_grid(mantel_pH_10cm, mantel_pH_20cm, mantel_OM_10cm, m
 
 soil_mantel_plots
 
+
+
+# Save Figure
+ggsave("~/Dropbox/WSU/WFDP_Chapter_3_Project/Enviro_Data/Figures/soil_mantel_plots.png", 
+       plot = soil_mantel_plots, width = 8, height = 8, units = "in", dpi = 300)
+
+
+## -- END -- ## 

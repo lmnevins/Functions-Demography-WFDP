@@ -12,6 +12,11 @@
 #                     cowplot v 1.2.0
 #                     emmeans v 2.0.1
 #                     lme4 v 1.1.38
+#                     gstat v 2.1.4
+#                     car v 3.1.3
+#                     FNN v 1.1.4.1
+#                     spdep v 1.4.1
+#                     ade4 v 1.7.23
 #                     
 # -----------------------------------------------------------------------------#
 
@@ -25,14 +30,18 @@ library(raster); packageVersion("raster")
 library(cowplot); packageVersion("cowplot")
 library(emmeans); packageVersion("emmeans")
 library(lme4); packageVersion("lme4")
+library(gstat); packageVersion("gstat")
+library(car); packageVersion("car")
+library(FNN); packageVersion("FNN")
+library(spdep); packageVersion("spdep")
+library(ade4); packageVersion("ade4")
 
 #################################################################################
 #                               Main workflow                                   #
-#  Explore the growth data for all of the trait trees sampled at WFDP. Assess   #
-#  for differences between species, or any relationships to environmental       #
-#  variables so far. Then relate to trait information for the trees themselves. #
-#  Use the values of the leaf and root PC1 and PC2 values for each focal tree   # 
-#  to explore relationships of trait strategies with focal trees growth.        #
+#  Explore the growth data for all of the trait trees sampled at WFDP. Relate   #
+#  to trait information for the trees themselves.Use the values of the leaf and # 
+#  root PC1 and PC2 values for each focal tree to explore relationships of      # 
+#  trait strategies with focal trees growth.                                    #
 #                                                                               #
 #################################################################################
 
@@ -68,8 +77,7 @@ scores.all <- read.csv("~/Dropbox/WSU/WFDP_Chapter_3_Project/Trait_Data/PCA/tree
 growth <- read.csv("stems_WFDP_20250206_trimmed.csv")
   
 # each tree is identified by its WFDP stem_tag. There are three census years - 2011, 
-# 2016, and 2021. I want to collect the diameters from the first and last census year 
-# to calculate how much they have grown. 
+# 2016, and 2021.
 
 
 # get diameters for each of the three timepoints for all 60 trees
@@ -138,288 +146,126 @@ all_traits_growth_env$Species <- as.factor(all_traits_growth_env$Species)
 ## These datafiles now have everything compiled to explore relationships of tree growth with 
 # topographic variables, and the host tree traits 
 
+######################### 
+
+# Also load in the individual raw trait datasets and clean a bit 
+
+##Leaves 
+leaf <- read.csv("~/Dropbox/WSU/WFDP_Chapter_3_Project/Trait_Data/WFDP_leaf_traits.csv")
+
+# make species a factor 
+leaf$Host_ID <- as.factor(leaf$Host_ID)
+
+# filter out PSME as a host since there were so few sampled 
+leaf <- leaf %>% filter(Host_ID != 'PSME')
+
+# filter out T-TABR-03 as a host since it had no fungal community data 
+leaf <- leaf %>% filter(code != 'T-TABR-03')
+
+## Roots
+root <- read.csv("~/Dropbox/WSU/WFDP_Chapter_3_Project/Trait_Data/WFDP_root_traits.csv")
+
+root$Host_ID <- as.factor(root$Host_ID)
+
+root <- root %>% filter(Host_ID != 'PSME')
+root <- root %>% filter(code != 'T-TABR-03')
+
+
+# combine into one dataset for the trees 
+traits <- merge(leaf, root, by = 'code')
+
+# subset just variables of interest, excluding petiole data since it is absent for
+# needle-leaf species 
+
+traits <- dplyr::select(traits, code, WFDP_Code = WFDP_Code.x, sub_plot = sub_plot.x, Host_ID = Host_ID.x, SLA_leaf, LDMC_leaf, LMA_leaf, 
+                        leaf_pct_N, leaf_pct_C, leaf_CN, leaf_15N, leaf_13C, specific_root_length, specific_root_area,
+                        root_dry_matter_cont, root_CN, root_15N, root_13C, avg_root_dia, root_pct_N, root_pct_C)
+
+
+# Merge this traits data to the all_traits_growth_env df to use to explore individual trait 
+# relationships to growth later on 
+
+
+trait_growth_df <- merge(traits, all_traits_growth_env, by = "WFDP_Code")
+
+# Reload Host_ID that got renamed when merging 
+trait_growth_df$Host_ID <- trait_growth_df$Host_ID.x
+
+
+# make dataframe of full species names 
+
+full <- c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", 
+          "T. plicata", "T. heterophylla")
+
+Species <- c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE")
+
+
+taxa <- data.frame(full, Species)
+
+# Merge to demo data by Species 
+diams <- merge(diams, taxa, by = "Species")
+
+
+###############################
 
 # set colors for hosts 
                 # ABAM      ABGR      ALRU        CONU     TABR        THPL       TSHE        
 all_hosts <- c("#FFD373", "#FD8021", "#E05400", "#0073CC","#003488", "#001D59", "#001524")
 
 
-# Visualize mean RGR between the focal tree species 
+# Define shapes for species 
 
-spp_rgr <- ggplot(diams, aes(y = mean_RGR, x = Species, fill = Species)) +
-  geom_boxplot() +
-  geom_point(alpha = 0.6) +
-  theme_bw() +
-  scale_fill_manual(values=all_hosts, 
-                      name="Focal Species",
-                      breaks=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE"),
-                      labels=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE")) +
-  labs(x = "", y = expression("Mean Relative Growth Rate ("*yr^{-1}*")")) +
-  theme(
-    axis.text.x = element_text(size = 11, colour="black"),
-    axis.text.y = element_text(size = 11, colour="black"),
-    axis.title.y = element_text(size = 12, colour="black"),
-    axis.title.x = element_text(size = 12, colour="black")) +
-  theme(legend.text = element_text(size = 11, colour="black"), 
-        legend.title = element_text(size = 12, face = "bold", colour="black")) +
-  theme(legend.position = "right")
-
-spp_rgr
-
-
-#summaries 
-
-rgr_spp_aov <- aov(mean_RGR ~ Species, data = diams)
-
-summary(rgr_spp_aov)
-
-# RGR significantly differs between species 
-# 
-#           Df   Sum Sq   Mean Sq F value         Pr(>F)    
-#     Species      6 0.002929 0.0004882   5.553 0.00016 ***
-#   Residuals   53 0.004660 0.0000879                    
-# ---
-#   Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
-
-
-tuk_rgr_spp <- TukeyHSD(rgr_spp_aov)
-tuk_rgr_spp
-
-# 
-# diff           lwr           upr     p adj
-# ABGR-ABAM -6.952969e-03 -0.0217905642  0.0078846261 0.7799461
-# ALRU-ABAM  1.022609e-02 -0.0055115590  0.0259637335 0.4322334
-# CONU-ABAM -4.838083e-03 -0.0176878172  0.0080116516 0.9079049
-# TABR-ABAM -1.493780e-02 -0.0281396491 -0.0017359550 0.0170683
-# THPL-ABAM  4.200038e-03 -0.0086496967  0.0170497720 0.9514257
-# TSHE-ABAM -4.903199e-03 -0.0177529337  0.0079465350 0.9024389
-# ALRU-ABGR  1.717906e-02 -0.0002195662  0.0345776789 0.0550804
-# CONU-ABGR  2.114886e-03 -0.0127227089  0.0169524814 0.9994224
-# TABR-ABGR -7.984833e-03 -0.0231283902  0.0071587242 0.6729593
-# THPL-ABGR  1.115301e-02 -0.0036845885  0.0259906019 0.2616727
-# TSHE-ABGR  2.049770e-03 -0.0127878255  0.0168873649 0.9995173
-# CONU-ALRU -1.506417e-02 -0.0308018163  0.0006734762 0.0690773
-# TABR-ALRU -2.516389e-02 -0.0411903238 -0.0091374548 0.0002476
-# THPL-ALRU -6.026050e-03 -0.0217636959  0.0097115966 0.9009760
-# TSHE-ALRU -1.512929e-02 -0.0308669329  0.0006083596 0.0669937
-# TABR-CONU -1.009972e-02 -0.0233015663  0.0031021278 0.2429691
-# THPL-CONU  9.038120e-03 -0.0038116139  0.0218878548 0.3367882
-# TSHE-CONU -6.511657e-05 -0.0129148509  0.0127846178 1.0000000
-# THPL-TABR  1.913784e-02  0.0059359926  0.0323396868 0.0008547
-# TSHE-TABR  1.003460e-02 -0.0031672444  0.0232364498 0.2497722
-# TSHE-THPL -9.103237e-03 -0.0219529714  0.0037464973 0.3283815
-
-
-# TABR is different from ABAM, ALRU, THPL
-
-#################################################################################
-
-###################################### -- 
-# (2) RGR RELATIONSHIP TO TOPOGRAPHY
-###################################### -- 
-
-# Considering relationships of both the diameter difference between the first and last time points, 
-# and the RGR for each focal tree to slope, aspect, and elevation of each tree. 
-
-
-# Just using the leaf_growth_env df here because this is just looking at the environmental data, and 
-# nothing related to the PCA results yet 
+# ABAM, ABGR, ALRU, CONU, TABR, THPL, TSHE  
+species_shapes <- c(15, 16, 17, 18, 7, 8, 9)
 
 
 
-# Exploring separate slopes per species here, because we would expect that growth will vary between species, 
-# and may also vary individually with topography. Also testing the linear regressions with an interaction between 
-# the topographic variable and species, to get the individual slopes for each species for the relationship 
-# between growth and the topographic variable. 
+spp_order <- c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", 
+               "T. plicata", "T. heterophylla")
 
 
-### Explore RGR relationships 
-
-## Slope
-slope2 <- ggplot(leaf_growth_env, aes(x = slope, y = mean_RGR, colour = Species)) +
-  geom_point(alpha = 1, cex = 2.5) +
-  geom_smooth(method = "lm", se = TRUE, color = "black") +
-  facet_wrap(~ Species, scales = "free_x") +
-  theme_bw() +
-  scale_colour_manual(values=all_hosts, 
-                      name="Species",
-                      breaks=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE"),
-                      labels=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE")) +
-  labs(x = "Slope", y = expression("Mean Relative Growth Rate ("*yr^{-1}*")")) +
-  theme(
-    axis.text.x = element_text(size = 11, colour="black"),
-    axis.text.y = element_text(size = 11, colour="black"),
-    axis.title.y = element_text(size = 12, colour="black"),
-    axis.title.x = element_text(size = 12, colour="black"), 
-    strip.text = element_text(size = 12, colour="black")) +
-  theme(legend.text = element_text(size = 11, colour="black"), 
-        legend.title = element_text(size = 12, face = "bold", colour="black")) +
-  theme(legend.position = "none")
-
-slope2
-
-# test relationships 
-lm_slope2 <- lm(mean_RGR ~ slope * Species, data = leaf_growth_env)
-
-emtrends(lm_slope2, ~ Species, var = "slope") %>% test(adjust = "fdr")
-
-
-# Species slope.trend      SE df t.ratio p.value
-# ABAM       0.000417 0.00275 46   0.152  0.9599
-# ABGR       0.000810 0.00894 46   0.091  0.9599
-# ALRU      -0.013660 0.00571 46  -2.391  0.1467
-# CONU      -0.000265 0.00524 46  -0.051  0.9599
-# TABR       0.000967 0.00256 46   0.378  0.9599
-# THPL       0.002027 0.00195 46   1.039  0.9599
-# TSHE       0.001395 0.00366 46   0.381  0.9599
-
-
-anova(lm_slope2)
-
-# Response: mean_RGR
-# Df    Sum Sq    Mean Sq F value    Pr(>F)    
-# slope          1 0.0001564 0.00015639  1.7828 0.1883771    
-# Species        6 0.0027952 0.00046587  5.3106 0.0003132 ***
-#   slope:Species  6 0.0006022 0.00010036  1.1441 0.3525130    
-# Residuals     46 0.0040353 0.00008772                      
-# ---
-#   Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
-
-
-
-## Aspect
-aspect2 <- ggplot(leaf_growth_env, aes(x = aspect, y = mean_RGR, colour = Species)) +
-  geom_point(alpha = 1, cex = 2.5) +
-  geom_smooth(method = "lm", se = TRUE, color = "black") +
-  facet_wrap(~ Species, scales = "free_x") +
-  theme_bw() +
-  scale_colour_manual(values=all_hosts, 
-                      name="Species",
-                      breaks=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE"),
-                      labels=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE")) +
-  labs(x = "Aspect", y = expression("Mean Relative Growth Rate ("*yr^{-1}*")")) +
-  theme(
-    axis.text.x = element_text(size = 11, colour="black"),
-    axis.text.y = element_text(size = 11, colour="black"),
-    axis.title.y = element_text(size = 12, colour="black"),
-    axis.title.x = element_text(size = 12, colour="black"), 
-    strip.text = element_text(size = 12, colour="black")) +
-  theme(legend.text = element_text(size = 11, colour="black"), 
-        legend.title = element_text(size = 12, face = "bold", colour="black")) +
-  theme(legend.position = "none")
-
-aspect2
-
-
-# test relationships 
-lm_aspect2 <- lm(mean_RGR ~ aspect * Species, data = leaf_growth_env)
-
-emtrends(lm_aspect2, ~ Species, var = "aspect") %>% test(adjust = "fdr")
-
-
-# Species aspect.trend       SE df t.ratio p.value
-# ABAM       -6.95e-05 9.96e-05 46  -0.697  0.9126
-# ABGR       -4.72e-05 1.00e-04 46  -0.471  0.9126
-# ALRU        2.47e-05 1.82e-04 46   0.135  0.9126
-# CONU        1.37e-05 5.91e-05 46   0.233  0.9126
-# TABR        7.05e-05 1.50e-04 46   0.469  0.9126
-# THPL        1.77e-05 3.29e-05 46   0.537  0.9126
-# TSHE        1.39e-05 1.26e-04 46   0.110  0.9126
-
-
-anova(lm_aspect2)
-
-# Response: mean_RGR
-# Df    Sum Sq    Mean Sq F value    Pr(>F)    
-# aspect          1 0.0000018 0.00000181  0.0184 0.8926854    
-# Species         6 0.0029389 0.00048981  4.9722 0.0005358 ***
-#   aspect:Species  6 0.0001169 0.00001948  0.1978 0.9758017    
-# Residuals      46 0.0045315 0.00009851                      
-# ---
-#   Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
-
-
-## Elevation
-elev2 <- ggplot(leaf_growth_env, aes(x = elevation_m, y = mean_RGR, colour = Species)) +
-  geom_point(alpha = 1, cex = 2.5) +
-  geom_smooth(method = "lm", se = TRUE, color = "black") +
-  facet_wrap(~ Species, scales = "free_x") +
-  theme_bw() +
-  scale_colour_manual(values=all_hosts, 
-                      name="Species",
-                      breaks=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE"),
-                      labels=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE")) +
-  labs(x = "Elevation (m)", y = expression("Mean Relative Growth Rate ("*yr^{-1}*")")) +
-  theme(
-    axis.text.x = element_text(size = 11, colour="black"),
-    axis.text.y = element_text(size = 11, colour="black"),
-    axis.title.y = element_text(size = 12, colour="black"),
-    axis.title.x = element_text(size = 12, colour="black"), 
-    strip.text = element_text(size = 12, colour="black")) +
-  theme(legend.text = element_text(size = 11, colour="black"), 
-        legend.title = element_text(size = 12, face = "bold", colour="black")) +
-  theme(legend.position = "none")
-
-elev2
-
-
-# test relationships 
-lm_elev2 <- lm(mean_RGR ~ elevation_m * Species, data = leaf_growth_env)
-
-emtrends(lm_elev2, ~ Species, var = "elevation_m") %>% test(adjust = "fdr")
-
-# Species elevation_m.trend       SE df t.ratio p.value
-# ABAM            -6.68e-04 0.000356 46  -1.874  0.4714
-# ABGR             1.54e-04 0.000452 46   0.340  0.9988
-# ALRU            -3.75e-04 0.000532 46  -0.704  0.9988
-# CONU            -8.62e-07 0.000550 46  -0.002  0.9988
-# TABR             8.30e-05 0.000427 46   0.195  0.9988
-# THPL             4.52e-04 0.000406 46   1.113  0.9507
-# TSHE            -5.75e-05 0.000333 46  -0.173  0.9988
-
-anova(lm_elev2)
-
-# Response: mean_RGR
-# Df    Sum Sq    Mean Sq F value    Pr(>F)    
-# elevation_m          1 0.0001623 0.00016235  1.7918 0.1872884    
-# Species              6 0.0027895 0.00046492  5.1312 0.0004158 ***
-#   elevation_m:Species  6 0.0004694 0.00007823  0.8634 0.5288464    
-# Residuals           46 0.0041679 0.00009061                      
-# ---
-#   Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
-
-
-# Outcome: Same general trends between diam_diff and RGR, species differ in their growth rates, 
-# but these are not being driven by any of the topographic variables. 
+# Convert the column to a factor with the specified levels
+diams$full <- factor(diams$full, levels = spp_order)
 
 
 #################################################################################
 
 ################################################ -- 
-# (3) GROWTH RELATIONSHIPS TO TRAIT PCA VALUES
+# (2) GROWTH RELATIONSHIPS TO TRAIT PCA VALUES
 ################################################ -- 
+
 
 ### RGR ####
 
 ## LEAF TRAITS
 
+# Merge in full species names to generate a legend  
+leaf_growth_env <- merge(leaf_growth_env, taxa, by = "Species")
+
 # PC1 - All species together 
-leaf_PC1_rgr_all <- ggplot(leaf_growth_env, aes(x = PC1, y = mean_RGR, colour = Species)) +
-  geom_point(alpha = 1, cex = 2.5) +
-  geom_smooth(method = "lm", se = TRUE, color = "black") +
+leaf_PC1_rgr_all <- ggplot(leaf_growth_env, aes(x = PC1, y = mean_RGR, colour = full)) +
+  geom_point(alpha = 1, cex = 2.5, aes(shape = full)) +
+  geom_smooth(method = "lm", se = TRUE, color = "black", linetype = 2) +
   theme_bw() +
-  scale_colour_manual(values=all_hosts, 
-                      name="Species",
-                      breaks=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE"),
-                      labels=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE")) +
+  scale_color_manual(values=all_hosts, 
+                    name="Focal Species",
+                    breaks=c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", 
+                             "T. plicata", "T. heterophylla"),
+                    labels=c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", 
+                             "T. plicata", "T. heterophylla")) +
+  scale_shape_manual(
+    values = species_shapes, 
+    breaks = c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", "T. plicata", "T. heterophylla"), 
+    name = "Focal Species",  
+    labels=c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", "T. plicata", "T. heterophylla")) +
   labs(x = "Leaf Trait PC1 Value", y = expression("Mean RGR ("*yr^{-1}*")")) +
   theme(
-    axis.text.x = element_text(size = 11, colour="black"),
-    axis.text.y = element_text(size = 11, colour="black"),
+    axis.text.x = element_text(size = 12, colour="black"),
+    axis.text.y = element_text(size = 12, colour="black"),
     axis.title.y = element_text(size = 12, colour="black"),
     axis.title.x = element_text(size = 12, colour="black"), 
     strip.text = element_text(size = 12, colour="black")) +
-  theme(legend.text = element_text(size = 11, colour="black"), 
+  theme(legend.text = element_text(size = 12, colour="black", face = "italic"), 
         legend.title = element_text(size = 12, face = "bold", colour="black")) +
   theme(legend.position = "none")
 
@@ -450,12 +296,12 @@ leaf_PC1_rgr_sep <- ggplot(leaf_growth_env, aes(x = PC1, y = mean_RGR, colour = 
                       labels=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE")) +
   labs(x = "Leaf Trait PC1 Value", y = expression("Mean Relative Growth Rate ("*yr^{-1}*")")) +
   theme(
-    axis.text.x = element_text(size = 11, colour="black"),
-    axis.text.y = element_text(size = 11, colour="black"),
+    axis.text.x = element_text(size = 12, colour="black"),
+    axis.text.y = element_text(size = 12, colour="black"),
     axis.title.y = element_text(size = 12, colour="black"),
     axis.title.x = element_text(size = 12, colour="black"), 
     strip.text = element_text(size = 12, colour="black")) +
-  theme(legend.text = element_text(size = 11, colour="black"), 
+  theme(legend.text = element_text(size = 12, colour="black"), 
         legend.title = element_text(size = 12, face = "bold", colour="black")) +
   theme(legend.position = "none")
 
@@ -496,22 +342,29 @@ anova(lm_leaf_PC1_rgr_sep)
 
 
 ## PC2 - All species together 
-leaf_PC2_rgr_all <- ggplot(leaf_growth_env, aes(x = PC2, y = mean_RGR, colour = Species)) +
-  geom_point(alpha = 1, cex = 2.5) +
-  geom_smooth(method = "lm", se = TRUE, color = "black") +
+leaf_PC2_rgr_all <- ggplot(leaf_growth_env, aes(x = PC2, y = mean_RGR, colour = full)) +
+  geom_point(alpha = 1, cex = 2.5, aes(shape = full)) +
+  geom_smooth(method = "lm", se = TRUE, color = "black", linetype = 2) +
   theme_bw() +
-  scale_colour_manual(values=all_hosts, 
-                      name="Species",
-                      breaks=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE"),
-                      labels=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE")) +
+  scale_color_manual(values=all_hosts, 
+                     name="Focal Species",
+                     breaks=c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", 
+                              "T. plicata", "T. heterophylla"),
+                     labels=c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", 
+                              "T. plicata", "T. heterophylla")) +
+  scale_shape_manual(
+    values = species_shapes, 
+    breaks = c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", "T. plicata", "T. heterophylla"), 
+    name = "Focal Species",  
+    labels=c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", "T. plicata", "T. heterophylla")) +
   labs(x = "Leaf Trait PC2 Value", y = expression("Mean RGR ("*yr^{-1}*")")) +
   theme(
-    axis.text.x = element_text(size = 11, colour="black"),
-    axis.text.y = element_text(size = 11, colour="black"),
+    axis.text.x = element_text(size = 12, colour="black"),
+    axis.text.y = element_text(size = 12, colour="black"),
     axis.title.y = element_text(size = 12, colour="black"),
     axis.title.x = element_text(size = 12, colour="black"), 
     strip.text = element_text(size = 12, colour="black")) +
-  theme(legend.text = element_text(size = 11, colour="black"), 
+  theme(legend.text = element_text(size = 12, colour="black"), 
         legend.title = element_text(size = 12, face = "bold", colour="black")) +
   theme(legend.position = "none")
 
@@ -542,12 +395,12 @@ leaf_PC2_rgr_sep <- ggplot(leaf_growth_env, aes(x = PC2, y = mean_RGR, colour = 
                       labels=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE")) +
   labs(x = "Leaf Trait PC2 Value", y = expression("Mean Relative Growth Rate ("*yr^{-1}*")")) +
   theme(
-    axis.text.x = element_text(size = 11, colour="black"),
-    axis.text.y = element_text(size = 11, colour="black"),
+    axis.text.x = element_text(size = 12, colour="black"),
+    axis.text.y = element_text(size = 12, colour="black"),
     axis.title.y = element_text(size = 12, colour="black"),
     axis.title.x = element_text(size = 12, colour="black"), 
     strip.text = element_text(size = 12, colour="black")) +
-  theme(legend.text = element_text(size = 11, colour="black"), 
+  theme(legend.text = element_text(size = 12, colour="black"), 
         legend.title = element_text(size = 12, face = "bold", colour="black")) +
   theme(legend.position = "none")
 
@@ -589,23 +442,33 @@ anova(lm_leaf_PC2_rgr_sep)
 
 ## ROOT TRAITS
 
+# Merge in full species names to generate a legend  
+root_growth_env <- merge(root_growth_env, taxa, by = "Species")
+
 # PC1 - All species together 
-root_PC1_rgr_all <- ggplot(root_growth_env, aes(x = PC1, y = mean_RGR, colour = Species)) +
-  geom_point(alpha = 1, cex = 2.5) +
-  geom_smooth(method = "lm", se = TRUE, color = "black") +
+root_PC1_rgr_all <- ggplot(root_growth_env, aes(x = PC1, y = mean_RGR, colour = full)) +
+  geom_point(alpha = 1, cex = 2.5, aes(shape = full)) +
+  geom_smooth(method = "lm", se = TRUE, color = "black", linetype = 2) +
   theme_bw() +
-  scale_colour_manual(values=all_hosts, 
-                      name="Species",
-                      breaks=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE"),
-                      labels=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE")) +
+  scale_color_manual(values=all_hosts, 
+                     name="Focal Species",
+                     breaks=c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", 
+                              "T. plicata", "T. heterophylla"),
+                     labels=c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", 
+                              "T. plicata", "T. heterophylla")) +
+  scale_shape_manual(
+    values = species_shapes, 
+    breaks = c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", "T. plicata", "T. heterophylla"), 
+    name = "Focal Species",  
+    labels=c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", "T. plicata", "T. heterophylla")) +
   labs(x = "Root Trait PC1 Value", y = expression("Mean RGR ("*yr^{-1}*")")) +
   theme(
-    axis.text.x = element_text(size = 11, colour="black"),
-    axis.text.y = element_text(size = 11, colour="black"),
+    axis.text.x = element_text(size = 12, colour="black"),
+    axis.text.y = element_text(size = 12, colour="black"),
     axis.title.y = element_text(size = 12, colour="black"),
     axis.title.x = element_text(size = 12, colour="black"), 
     strip.text = element_text(size = 12, colour="black")) +
-  theme(legend.text = element_text(size = 11, colour="black"), 
+  theme(legend.text = element_text(size = 12, colour="black"), 
         legend.title = element_text(size = 12, face = "bold", colour="black")) +
   theme(legend.position = "none")
 
@@ -636,12 +499,12 @@ root_PC1_rgr_sep <- ggplot(root_growth_env, aes(x = PC1, y = mean_RGR, colour = 
                       labels=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE")) +
   labs(x = "Root Trait PC1 Value", y = expression("Mean Relative Growth Rate ("*yr^{-1}*")")) +
   theme(
-    axis.text.x = element_text(size = 11, colour="black"),
-    axis.text.y = element_text(size = 11, colour="black"),
+    axis.text.x = element_text(size = 12, colour="black"),
+    axis.text.y = element_text(size = 12, colour="black"),
     axis.title.y = element_text(size = 12, colour="black"),
     axis.title.x = element_text(size = 12, colour="black"), 
     strip.text = element_text(size = 12, colour="black")) +
-  theme(legend.text = element_text(size = 11, colour="black"), 
+  theme(legend.text = element_text(size = 12, colour="black"), 
         legend.title = element_text(size = 12, face = "bold", colour="black")) +
   theme(legend.position = "none")
 
@@ -681,22 +544,29 @@ anova(lm_root_PC1_rgr_sep)
 
 
 ## PC2 - All species together 
-root_PC2_rgr_all <- ggplot(root_growth_env, aes(x = PC2, y = mean_RGR, colour = Species)) +
-  geom_point(alpha = 1, cex = 2.5) +
-  geom_smooth(method = "lm", se = TRUE, color = "black") +
+root_PC2_rgr_all <- ggplot(root_growth_env, aes(x = PC2, y = mean_RGR, colour = full)) +
+  geom_point(alpha = 1, cex = 2.5, aes(shape = full)) +
+  geom_smooth(method = "lm", se = TRUE, color = "black", linetype = 1) +
   theme_bw() +
-  scale_colour_manual(values=all_hosts, 
-                      name="Species",
-                      breaks=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE"),
-                      labels=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE")) +
+  scale_color_manual(values=all_hosts, 
+                     name="Focal Species",
+                     breaks=c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", 
+                              "T. plicata", "T. heterophylla"),
+                     labels=c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", 
+                              "T. plicata", "T. heterophylla")) +
+  scale_shape_manual(
+    values = species_shapes, 
+    breaks = c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", "T. plicata", "T. heterophylla"), 
+    name = "Focal Species",  
+    labels=c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", "T. plicata", "T. heterophylla")) +
   labs(x = "Root Trait PC2 Value", y = expression("Mean RGR ("*yr^{-1}*")")) +
   theme(
-    axis.text.x = element_text(size = 11, colour="black"),
-    axis.text.y = element_text(size = 11, colour="black"),
+    axis.text.x = element_text(size = 12, colour="black"),
+    axis.text.y = element_text(size = 12, colour="black"),
     axis.title.y = element_text(size = 12, colour="black"),
     axis.title.x = element_text(size = 12, colour="black"), 
     strip.text = element_text(size = 12, colour="black")) +
-  theme(legend.text = element_text(size = 11, colour="black"), 
+  theme(legend.text = element_text(size = 12, colour="black"), 
         legend.title = element_text(size = 12, face = "bold", colour="black")) +
   theme(legend.position = "none")
 
@@ -727,12 +597,12 @@ root_PC2_rgr_sep <- ggplot(root_growth_env, aes(x = PC2, y = mean_RGR, colour = 
                       labels=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE")) +
   labs(x = "Root Trait PC2 Value", y = expression("Mean Relative Growth Rate ("*yr^{-1}*")")) +
   theme(
-    axis.text.x = element_text(size = 11, colour="black"),
-    axis.text.y = element_text(size = 11, colour="black"),
+    axis.text.x = element_text(size = 12, colour="black"),
+    axis.text.y = element_text(size = 12, colour="black"),
     axis.title.y = element_text(size = 12, colour="black"),
     axis.title.x = element_text(size = 12, colour="black"), 
     strip.text = element_text(size = 12, colour="black")) +
-  theme(legend.text = element_text(size = 11, colour="black"), 
+  theme(legend.text = element_text(size = 12, colour="black"), 
         legend.title = element_text(size = 12, face = "bold", colour="black")) +
   theme(legend.position = "none")
 
@@ -779,7 +649,7 @@ anova(lm_root_PC2_rgr_sep)
 #################################################################################
 
 #################################################### -- 
-# (4) GROWTH RELATIONSHIPS TO ALL TRAIT PCA VALUES
+# (3) GROWTH RELATIONSHIPS TO ALL TRAIT PCA VALUES
 #################################################### -- 
 
 # Same analyses as above to explore the relationships of RGR with the tree traits, but using the PCA 
@@ -971,7 +841,723 @@ anova(lm_all_PC2_rgr_sep)
 #################################################################################
 
 ############################################## -- 
-# (4) GATHER SIGNIFICANT RESULTS OF INTEREST  
+# (4) INDIVIDUAL TRAIT RELATIONSHIPS TO GROWTH  
+############################################## -- 
+
+# Exploring some relationships of individual traits to tree RGR because these are often considered independently, 
+# rather than by lumping traits together into broader strategies. 
+
+
+# Studies find very mixed relationships of individual traits to growth, and often none at all (the root of much 
+# of this study's rationale). Anticipating questions about this, so exploring these now. 
+
+# Focusing on the leaf and root traits that were considered in the PCAs
+
+# Merge in full species names to generate a legend  
+trait_growth_df <- merge(trait_growth_df, taxa, by = "Species")
+
+
+## LEAF TRAITS
+
+
+# SLA
+leaf_sla_rgr <- ggplot(trait_growth_df, aes(x = SLA_leaf, y = mean_RGR, colour = full)) +
+  geom_point(alpha = 1, cex = 2.5, aes(shape = full)) +
+  geom_smooth(method = "lm", se = TRUE, color = "black", linetype = 2) +
+  theme_bw() +
+  scale_color_manual(values=all_hosts, 
+                     name="Focal Species",
+                     breaks=c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", 
+                              "T. plicata", "T. heterophylla"),
+                     labels=c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", 
+                              "T. plicata", "T. heterophylla")) +
+  scale_shape_manual(
+    values = species_shapes, 
+    breaks = c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", "T. plicata", "T. heterophylla"), 
+    name = "Focal Species",  
+    labels=c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", "T. plicata", "T. heterophylla")) +
+  labs(x = expression("Specific Leaf Area (mm"^2* "mg"^-1*")"), y = expression("Mean RGR ("*yr^{-1}*")")) +
+  theme(
+    axis.text.x = element_text(size = 12, colour="black"),
+    axis.text.y = element_text(size = 12, colour="black"),
+    axis.title.y = element_text(size = 12, colour="black"),
+    axis.title.x = element_text(size = 12, colour="black"), 
+    strip.text = element_text(size = 12, colour="black")) +
+  theme(legend.text = element_text(size = 12, colour="black"), 
+        legend.title = element_text(size = 12, face = "bold", colour="black")) +
+  theme(legend.position = "none")
+
+leaf_sla_rgr
+
+
+# test relationships 
+lm_leaf_sla_rgr <- lm(mean_RGR ~ SLA_leaf, data = trait_growth_df)
+
+summary(lm_leaf_sla_rgr)
+
+# Multiple R-squared:  0.01383,	Adjusted R-squared:  -0.003172 
+# F-statistic: 0.8135 on 1 and 58 DF,  p-value: 0.3708
+
+
+
+# LMA
+leaf_lma_rgr <- ggplot(trait_growth_df, aes(x = LMA_leaf, y = mean_RGR, colour = full)) +
+  geom_point(alpha = 1, cex = 2.5, aes(shape = full)) +
+  geom_smooth(method = "lm", se = TRUE, color = "black", linetype = 2) +
+  theme_bw() +
+  scale_color_manual(values=all_hosts, 
+                     name="Focal Species",
+                     breaks=c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", 
+                              "T. plicata", "T. heterophylla"),
+                     labels=c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", 
+                              "T. plicata", "T. heterophylla")) +
+  scale_shape_manual(
+    values = species_shapes, 
+    breaks = c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", "T. plicata", "T. heterophylla"), 
+    name = "Focal Species",  
+    labels=c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", "T. plicata", "T. heterophylla")) +
+  labs(x = expression("Leaf Mass per Area (mg mm"^-2*")"), y = expression("Mean RGR ("*yr^{-1}*")")) +
+  theme(
+    axis.text.x = element_text(size = 12, colour="black"),
+    axis.text.y = element_text(size = 12, colour="black"),
+    axis.title.y = element_text(size = 12, colour="black"),
+    axis.title.x = element_text(size = 12, colour="black"), 
+    strip.text = element_text(size = 12, colour="black")) +
+  theme(legend.text = element_text(size = 12, colour="black"), 
+        legend.title = element_text(size = 12, face = "bold", colour="black")) +
+  theme(legend.position = "none")
+
+leaf_lma_rgr
+
+
+# test relationships 
+lm_leaf_lma_rgr <- lm(mean_RGR ~ LMA_leaf, data = trait_growth_df)
+
+summary(lm_leaf_lma_rgr)
+
+# Multiple R-squared:  0.0003761,	Adjusted R-squared:  -0.01686 
+# F-statistic: 0.02182 on 1 and 58 DF,  p-value: 0.8831
+
+
+
+# LDMC
+leaf_ldmc_rgr <- ggplot(trait_growth_df, aes(x = LDMC_leaf, y = mean_RGR, colour = full)) +
+  geom_point(alpha = 1, cex = 2.5, aes(shape = full)) +
+  geom_smooth(method = "lm", se = TRUE, color = "black", linetype = 2) +
+  theme_bw() +
+  scale_color_manual(values=all_hosts, 
+                     name="Focal Species",
+                     breaks=c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", 
+                              "T. plicata", "T. heterophylla"),
+                     labels=c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", 
+                              "T. plicata", "T. heterophylla")) +
+  scale_shape_manual(
+    values = species_shapes, 
+    breaks = c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", "T. plicata", "T. heterophylla"), 
+    name = "Focal Species",  
+    labels=c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", "T. plicata", "T. heterophylla")) +
+  labs(x = expression("Leaf Dry Matter Content (mg g"^-1*")"), y = expression("Mean RGR ("*yr^{-1}*")")) +
+  theme(
+    axis.text.x = element_text(size = 12, colour="black"),
+    axis.text.y = element_text(size = 12, colour="black"),
+    axis.title.y = element_text(size = 12, colour="black"),
+    axis.title.x = element_text(size = 12, colour="black"), 
+    strip.text = element_text(size = 12, colour="black")) +
+  theme(legend.text = element_text(size = 12, colour="black"), 
+        legend.title = element_text(size = 12, face = "bold", colour="black")) +
+  theme(legend.position = "none")
+
+leaf_ldmc_rgr
+
+
+# test relationships 
+lm_leaf_ldmc_rgr <- lm(mean_RGR ~ LDMC_leaf, data = trait_growth_df)
+
+summary(lm_leaf_ldmc_rgr)
+
+
+# Multiple R-squared:  0.008526,	Adjusted R-squared:  -0.008569 
+# F-statistic: 0.4987 on 1 and 58 DF,  p-value: 0.4829
+
+
+
+# Leaf Pct_N
+leaf_pctN_rgr <- ggplot(trait_growth_df, aes(x = leaf_pct_N, y = mean_RGR, colour = full)) +
+  geom_point(alpha = 1, cex = 2.5, aes(shape = full)) +
+  geom_smooth(method = "lm", se = TRUE, color = "black", linetype = 2) +
+  theme_bw() +
+  scale_color_manual(values=all_hosts, 
+                     name="Focal Species",
+                     breaks=c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", 
+                              "T. plicata", "T. heterophylla"),
+                     labels=c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", 
+                              "T. plicata", "T. heterophylla")) +
+  scale_shape_manual(
+    values = species_shapes, 
+    breaks = c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", "T. plicata", "T. heterophylla"), 
+    name = "Focal Species",  
+    labels=c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", "T. plicata", "T. heterophylla")) +
+  labs(x = "Percent N (%)", y = expression("Mean RGR ("*yr^{-1}*")")) +
+  theme(
+    axis.text.x = element_text(size = 12, colour="black"),
+    axis.text.y = element_text(size = 12, colour="black"),
+    axis.title.y = element_text(size = 12, colour="black"),
+    axis.title.x = element_text(size = 12, colour="black"), 
+    strip.text = element_text(size = 12, colour="black")) +
+  theme(legend.text = element_text(size = 12, colour="black"), 
+        legend.title = element_text(size = 12, face = "bold", colour="black")) +
+  theme(legend.position = "none")
+
+leaf_pctN_rgr
+
+
+# test relationships 
+lm_leaf_pctN_rgr <- lm(mean_RGR ~ leaf_pct_N, data = trait_growth_df)
+
+summary(lm_leaf_pctN_rgr)
+
+
+# Multiple R-squared:  0.03179,	Adjusted R-squared:  0.01509 
+# F-statistic: 1.904 on 1 and 58 DF,  p-value: 0.1729
+
+
+
+# Leaf Pct_C
+leaf_pctC_rgr <- ggplot(trait_growth_df, aes(x = leaf_pct_C, y = mean_RGR, colour = full)) +
+  geom_point(alpha = 1, cex = 2.5, aes(shape = full)) +
+  geom_smooth(method = "lm", se = TRUE, color = "black", linetype = 2) +
+  theme_bw() +
+  scale_color_manual(values=all_hosts, 
+                     name="Focal Species",
+                     breaks=c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", 
+                              "T. plicata", "T. heterophylla"),
+                     labels=c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", 
+                              "T. plicata", "T. heterophylla")) +
+  scale_shape_manual(
+    values = species_shapes, 
+    breaks = c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", "T. plicata", "T. heterophylla"), 
+    name = "Focal Species",  
+    labels=c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", "T. plicata", "T. heterophylla")) +
+  labs(x = "Percent C (%)", y = expression("Mean RGR ("*yr^{-1}*")")) +
+  theme(
+    axis.text.x = element_text(size = 12, colour="black"),
+    axis.text.y = element_text(size = 12, colour="black"),
+    axis.title.y = element_text(size = 12, colour="black"),
+    axis.title.x = element_text(size = 12, colour="black"), 
+    strip.text = element_text(size = 12, colour="black")) +
+  theme(legend.text = element_text(size = 12, colour="black"), 
+        legend.title = element_text(size = 12, face = "bold", colour="black")) +
+  theme(legend.position = "none")
+
+leaf_pctC_rgr
+
+
+# test relationships 
+lm_leaf_pctC_rgr <- lm(mean_RGR ~ leaf_pct_C, data = trait_growth_df)
+
+summary(lm_leaf_pctC_rgr)
+
+
+# Multiple R-squared:  0.0132,	Adjusted R-squared:  -0.00381 
+# F-statistic: 0.776 on 1 and 58 DF,  p-value: 0.382
+
+
+
+# Leaf CN
+leaf_CN_rgr <- ggplot(trait_growth_df, aes(x = leaf_CN, y = mean_RGR, colour = full)) +
+  geom_point(alpha = 1, cex = 2.5, aes(shape = full)) +
+  geom_smooth(method = "lm", se = TRUE, color = "black", linetype = 2) +
+  theme_bw() +
+  scale_color_manual(values=all_hosts, 
+                     name="Focal Species",
+                     breaks=c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", 
+                              "T. plicata", "T. heterophylla"),
+                     labels=c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", 
+                              "T. plicata", "T. heterophylla")) +
+  scale_shape_manual(
+    values = species_shapes, 
+    breaks = c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", "T. plicata", "T. heterophylla"), 
+    name = "Focal Species",  
+    labels=c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", "T. plicata", "T. heterophylla")) +
+  labs(x = "Carbon:Nitrogen Ratio", y = expression("Mean RGR ("*yr^{-1}*")")) +
+  theme(
+    axis.text.x = element_text(size = 12, colour="black"),
+    axis.text.y = element_text(size = 12, colour="black"),
+    axis.title.y = element_text(size = 12, colour="black"),
+    axis.title.x = element_text(size = 12, colour="black"), 
+    strip.text = element_text(size = 12, colour="black")) +
+  theme(legend.text = element_text(size = 12, colour="black"), 
+        legend.title = element_text(size = 12, face = "bold", colour="black")) +
+  theme(legend.position = "none")
+
+leaf_CN_rgr
+
+
+# test relationships 
+lm_leaf_CN_rgr <- lm(mean_RGR ~ leaf_CN, data = trait_growth_df)
+
+summary(lm_leaf_CN_rgr)
+
+# Multiple R-squared:  0.002476,	Adjusted R-squared:  -0.01472 
+# F-statistic: 0.1439 on 1 and 58 DF,  p-value: 0.7058
+
+
+# Leaf 15N
+leaf_15N_rgr <- ggplot(trait_growth_df, aes(x = leaf_15N, y = mean_RGR, colour = full)) +
+  geom_point(alpha = 1, cex = 2.5, aes(shape = full)) +
+  geom_smooth(method = "lm", se = TRUE, color = "black", linetype = 2) +
+  theme_bw() +
+  scale_color_manual(values=all_hosts, 
+                     name="Focal Species",
+                     breaks=c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", 
+                              "T. plicata", "T. heterophylla"),
+                     labels=c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", 
+                              "T. plicata", "T. heterophylla")) +
+  scale_shape_manual(
+    values = species_shapes, 
+    breaks = c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", "T. plicata", "T. heterophylla"), 
+    name = "Focal Species",  
+    labels=c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", "T. plicata", "T. heterophylla")) +
+  labs(x = "15N Isotope per mil", y = expression("Mean RGR ("*yr^{-1}*")")) +
+  theme(
+    axis.text.x = element_text(size = 12, colour="black"),
+    axis.text.y = element_text(size = 12, colour="black"),
+    axis.title.y = element_text(size = 12, colour="black"),
+    axis.title.x = element_text(size = 12, colour="black"), 
+    strip.text = element_text(size = 12, colour="black")) +
+  theme(legend.text = element_text(size = 12, colour="black"), 
+        legend.title = element_text(size = 12, face = "bold", colour="black")) +
+  theme(legend.position = "none")
+
+leaf_15N_rgr
+
+
+# test relationships 
+lm_leaf_15N_rgr <- lm(mean_RGR ~ leaf_15N, data = trait_growth_df)
+
+summary(lm_leaf_15N_rgr)
+
+
+# Multiple R-squared:  0.01645,	Adjusted R-squared:  -0.0005047 
+# F-statistic: 0.9702 on 1 and 58 DF,  p-value: 0.3287
+
+
+# Leaf 13C
+leaf_13C_rgr <- ggplot(trait_growth_df, aes(x = leaf_13C, y = mean_RGR, colour = full)) +
+  geom_point(alpha = 1, cex = 2.5, aes(shape = full)) +
+  geom_smooth(method = "lm", se = TRUE, color = "black", linetype = 2) +
+  theme_bw() +
+  scale_color_manual(values=all_hosts, 
+                     name="Focal Species",
+                     breaks=c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", 
+                              "T. plicata", "T. heterophylla"),
+                     labels=c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", 
+                              "T. plicata", "T. heterophylla")) +
+  scale_shape_manual(
+    values = species_shapes, 
+    breaks = c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", "T. plicata", "T. heterophylla"), 
+    name = "Focal Species",  
+    labels=c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", "T. plicata", "T. heterophylla")) +
+  labs(x = "13C Isotope per mil", y = expression("Mean RGR ("*yr^{-1}*")")) +
+  theme(
+    axis.text.x = element_text(size = 12, colour="black"),
+    axis.text.y = element_text(size = 12, colour="black"),
+    axis.title.y = element_text(size = 12, colour="black"),
+    axis.title.x = element_text(size = 12, colour="black"), 
+    strip.text = element_text(size = 12, colour="black")) +
+  theme(legend.text = element_text(size = 12, colour="black"), 
+        legend.title = element_text(size = 12, face = "bold", colour="black")) +
+  theme(legend.position = "none")
+
+leaf_13C_rgr
+
+
+# test relationships 
+lm_leaf_13C_rgr <- lm(mean_RGR ~ leaf_13C, data = trait_growth_df)
+
+summary(lm_leaf_13C_rgr)
+
+# Multiple R-squared:  0.004138,	Adjusted R-squared:  -0.01303 
+# F-statistic: 0.241 on 1 and 58 DF,  p-value: 0.6253
+
+
+## ROOT TRAITS
+
+
+# SRA
+root_sra_rgr <- ggplot(trait_growth_df, aes(x = specific_root_area, y = mean_RGR, colour = full)) +
+  geom_point(alpha = 1, cex = 2.5, aes(shape = full)) +
+  geom_smooth(method = "lm", se = TRUE, color = "black", linetype = 2) +
+  theme_bw() +
+  scale_color_manual(values=all_hosts, 
+                     name="Focal Species",
+                     breaks=c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", 
+                              "T. plicata", "T. heterophylla"),
+                     labels=c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", 
+                              "T. plicata", "T. heterophylla")) +
+  scale_shape_manual(
+    values = species_shapes, 
+    breaks = c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", "T. plicata", "T. heterophylla"), 
+    name = "Focal Species",  
+    labels=c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", "T. plicata", "T. heterophylla")) +
+  labs(x = expression("Specific Root Area (cm"^2* "mg"^-1*")"), y = expression("Mean RGR ("*yr^{-1}*")")) +
+  theme(
+    axis.text.x = element_text(size = 12, colour="black"),
+    axis.text.y = element_text(size = 12, colour="black"),
+    axis.title.y = element_text(size = 12, colour="black"),
+    axis.title.x = element_text(size = 12, colour="black"), 
+    strip.text = element_text(size = 12, colour="black")) +
+  theme(legend.text = element_text(size = 12, colour="black"), 
+        legend.title = element_text(size = 12, face = "bold", colour="black")) +
+  theme(legend.position = "none")
+
+root_sra_rgr
+
+
+# test relationships 
+lm_root_sra_rgr <- lm(mean_RGR ~ specific_root_area, data = trait_growth_df)
+
+summary(lm_root_sra_rgr)
+
+
+# Multiple R-squared:  0.02201,	Adjusted R-squared:  0.005143 
+# F-statistic: 1.305 on 1 and 58 DF,  p-value: 0.258
+
+
+
+# SRL
+root_srl_rgr <- ggplot(trait_growth_df, aes(x = specific_root_length, y = mean_RGR, colour = full)) +
+  geom_point(alpha = 1, cex = 2.5, aes(shape = full)) +
+  geom_smooth(method = "lm", se = TRUE, color = "black", linetype = 2) +
+  theme_bw() +
+  scale_color_manual(values=all_hosts, 
+                     name="Focal Species",
+                     breaks=c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", 
+                              "T. plicata", "T. heterophylla"),
+                     labels=c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", 
+                              "T. plicata", "T. heterophylla")) +
+  scale_shape_manual(
+    values = species_shapes, 
+    breaks = c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", "T. plicata", "T. heterophylla"), 
+    name = "Focal Species",  
+    labels=c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", "T. plicata", "T. heterophylla")) +
+  labs(x = expression("Specific Root Length (cm mg"^-1*")"), y = expression("Mean RGR ("*yr^{-1}*")")) +
+  theme(
+    axis.text.x = element_text(size = 12, colour="black"),
+    axis.text.y = element_text(size = 12, colour="black"),
+    axis.title.y = element_text(size = 12, colour="black"),
+    axis.title.x = element_text(size = 12, colour="black"), 
+    strip.text = element_text(size = 12, colour="black")) +
+  theme(legend.text = element_text(size = 12, colour="black"), 
+        legend.title = element_text(size = 12, face = "bold", colour="black")) +
+  theme(legend.position = "none")
+
+root_srl_rgr
+
+
+# test relationships 
+lm_root_srl_rgr <- lm(mean_RGR ~ specific_root_length, data = trait_growth_df)
+
+summary(lm_root_srl_rgr)
+
+
+# Multiple R-squared:  0.04867,	Adjusted R-squared:  0.03227 
+# F-statistic: 2.967 on 1 and 58 DF,  p-value: 0.0903
+
+
+
+# Root diameter
+root_dia_rgr <- ggplot(trait_growth_df, aes(x = avg_root_dia, y = mean_RGR, colour = full)) +
+  geom_point(alpha = 1, cex = 2.5, aes(shape = full)) +
+  geom_smooth(method = "lm", se = TRUE, color = "black", linetype = 2) +
+  theme_bw() +
+  scale_color_manual(values=all_hosts, 
+                     name="Focal Species",
+                     breaks=c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", 
+                              "T. plicata", "T. heterophylla"),
+                     labels=c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", 
+                              "T. plicata", "T. heterophylla")) +
+  scale_shape_manual(
+    values = species_shapes, 
+    breaks = c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", "T. plicata", "T. heterophylla"), 
+    name = "Focal Species",  
+    labels=c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", "T. plicata", "T. heterophylla")) +
+  labs(x = "Average Root Diameter (mm)", y = expression("Mean RGR ("*yr^{-1}*")")) +
+  theme(
+    axis.text.x = element_text(size = 12, colour="black"),
+    axis.text.y = element_text(size = 12, colour="black"),
+    axis.title.y = element_text(size = 12, colour="black"),
+    axis.title.x = element_text(size = 12, colour="black"), 
+    strip.text = element_text(size = 12, colour="black")) +
+  theme(legend.text = element_text(size = 12, colour="black"), 
+        legend.title = element_text(size = 12, face = "bold", colour="black")) +
+  theme(legend.position = "none")
+
+root_dia_rgr
+
+
+# test relationships 
+lm_root_dia_rgr <- lm(mean_RGR ~ avg_root_dia, data = trait_growth_df)
+
+summary(lm_root_dia_rgr)
+
+# Multiple R-squared:  0.05501,	Adjusted R-squared:  0.03872 
+# F-statistic: 3.377 on 1 and 58 DF,  p-value: 0.07125
+
+
+# RDMC
+root_rdmc_rgr <- ggplot(trait_growth_df, aes(x = root_dry_matter_cont, y = mean_RGR, colour = full)) +
+  geom_point(alpha = 1, cex = 2.5, aes(shape = full)) +
+  geom_smooth(method = "lm", se = TRUE, color = "black", linetype = 1) +
+  theme_bw() +
+  scale_color_manual(values=all_hosts, 
+                     name="Focal Species",
+                     breaks=c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", 
+                              "T. plicata", "T. heterophylla"),
+                     labels=c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", 
+                              "T. plicata", "T. heterophylla")) +
+  scale_shape_manual(
+    values = species_shapes, 
+    breaks = c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", "T. plicata", "T. heterophylla"), 
+    name = "Focal Species",  
+    labels=c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", "T. plicata", "T. heterophylla")) +
+  labs(x = expression("Root Dry Matter Content (mg g"^-1*")"), y = expression("Mean RGR ("*yr^{-1}*")")) +
+  theme(
+    axis.text.x = element_text(size = 12, colour="black"),
+    axis.text.y = element_text(size = 12, colour="black"),
+    axis.title.y = element_text(size = 12, colour="black"),
+    axis.title.x = element_text(size = 12, colour="black"), 
+    strip.text = element_text(size = 12, colour="black")) +
+  theme(legend.text = element_text(size = 12, colour="black"), 
+        legend.title = element_text(size = 12, face = "bold", colour="black")) +
+  theme(legend.position = "none")
+
+root_rdmc_rgr
+
+
+# test relationships 
+lm_root_rdmc_rgr <- lm(mean_RGR ~ root_dry_matter_cont, data = trait_growth_df)
+
+summary(lm_root_rdmc_rgr)
+
+
+# Multiple R-squared:  0.0672,	Adjusted R-squared:  0.05111 
+# F-statistic: 4.178 on 1 and 58 DF,  p-value: 0.0455
+
+# Significant - higher structural investment related to lower RGR
+
+
+
+# Root Pct_N
+root_pctN_rgr <- ggplot(trait_growth_df, aes(x = root_pct_N, y = mean_RGR, colour = full)) +
+  geom_point(alpha = 1, cex = 2.5, aes(shape = full)) +
+  geom_smooth(method = "lm", se = TRUE, color = "black", linetype = 2) +
+  theme_bw() +
+  scale_color_manual(values=all_hosts, 
+                     name="Focal Species",
+                     breaks=c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", 
+                              "T. plicata", "T. heterophylla"),
+                     labels=c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", 
+                              "T. plicata", "T. heterophylla")) +
+  scale_shape_manual(
+    values = species_shapes, 
+    breaks = c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", "T. plicata", "T. heterophylla"), 
+    name = "Focal Species",  
+    labels=c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", "T. plicata", "T. heterophylla")) +
+  labs(x = "Percent N (%)", y = expression("Mean RGR ("*yr^{-1}*")")) +
+  theme(
+    axis.text.x = element_text(size = 12, colour="black"),
+    axis.text.y = element_text(size = 12, colour="black"),
+    axis.title.y = element_text(size = 12, colour="black"),
+    axis.title.x = element_text(size = 12, colour="black"), 
+    strip.text = element_text(size = 12, colour="black")) +
+  theme(legend.text = element_text(size = 12, colour="black"), 
+        legend.title = element_text(size = 12, face = "bold", colour="black")) +
+  theme(legend.position = "none")
+
+root_pctN_rgr
+
+
+# test relationships 
+lm_root_pctN_rgr <- lm(mean_RGR ~ root_pct_N, data = trait_growth_df)
+
+summary(lm_root_pctN_rgr)
+
+
+# Multiple R-squared:  0.01046,	Adjusted R-squared:  -0.006597 
+# F-statistic: 0.6133 on 1 and 58 DF,  p-value: 0.4367
+
+
+
+# Root Pct_C
+root_pctC_rgr <- ggplot(trait_growth_df, aes(x = root_pct_C, y = mean_RGR, colour = full)) +
+  geom_point(alpha = 1, cex = 2.5, aes(shape = full)) +
+  geom_smooth(method = "lm", se = TRUE, color = "black", linetype = 1) +
+  theme_bw() +
+  scale_color_manual(values=all_hosts, 
+                     name="Focal Species",
+                     breaks=c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", 
+                              "T. plicata", "T. heterophylla"),
+                     labels=c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", 
+                              "T. plicata", "T. heterophylla")) +
+  scale_shape_manual(
+    values = species_shapes, 
+    breaks = c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", "T. plicata", "T. heterophylla"), 
+    name = "Focal Species",  
+    labels=c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", "T. plicata", "T. heterophylla")) +
+  labs(x = "Percent C (%)", y = expression("Mean RGR ("*yr^{-1}*")")) +
+  theme(
+    axis.text.x = element_text(size = 12, colour="black"),
+    axis.text.y = element_text(size = 12, colour="black"),
+    axis.title.y = element_text(size = 12, colour="black"),
+    axis.title.x = element_text(size = 12, colour="black"), 
+    strip.text = element_text(size = 12, colour="black")) +
+  theme(legend.text = element_text(size = 12, colour="black"), 
+        legend.title = element_text(size = 12, face = "bold", colour="black")) +
+  theme(legend.position = "none")
+
+root_pctC_rgr
+
+
+# test relationships 
+lm_root_pctC_rgr <- lm(mean_RGR ~ root_pct_C, data = trait_growth_df)
+
+summary(lm_root_pctC_rgr)
+
+
+# Multiple R-squared:  0.1582,	Adjusted R-squared:  0.1437 
+# F-statistic:  10.9 on 1 and 58 DF,  p-value: 0.001649
+
+# Significant - higher structural investment related to lower RGR
+
+
+
+# Root CN
+root_CN_rgr <- ggplot(trait_growth_df, aes(x = root_CN, y = mean_RGR, colour = full)) +
+  geom_point(alpha = 1, cex = 2.5, aes(shape = full)) +
+  geom_smooth(method = "lm", se = TRUE, color = "black", linetype = 2) +
+  theme_bw() +
+  scale_color_manual(values=all_hosts, 
+                     name="Focal Species",
+                     breaks=c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", 
+                              "T. plicata", "T. heterophylla"),
+                     labels=c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", 
+                              "T. plicata", "T. heterophylla")) +
+  scale_shape_manual(
+    values = species_shapes, 
+    breaks = c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", "T. plicata", "T. heterophylla"), 
+    name = "Focal Species",  
+    labels=c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", "T. plicata", "T. heterophylla")) +
+  labs(x = "Carbon:Nitrogen Ratio", y = expression("Mean RGR ("*yr^{-1}*")")) +
+  theme(
+    axis.text.x = element_text(size = 12, colour="black"),
+    axis.text.y = element_text(size = 12, colour="black"),
+    axis.title.y = element_text(size = 12, colour="black"),
+    axis.title.x = element_text(size = 12, colour="black"), 
+    strip.text = element_text(size = 12, colour="black")) +
+  theme(legend.text = element_text(size = 12, colour="black"), 
+        legend.title = element_text(size = 12, face = "bold", colour="black")) +
+  theme(legend.position = "none")
+
+root_CN_rgr
+
+
+# test relationships 
+lm_root_CN_rgr <- lm(mean_RGR ~ root_CN, data = trait_growth_df)
+
+summary(lm_root_CN_rgr)
+
+
+# Multiple R-squared:  0.0192,	Adjusted R-squared:  0.00229 
+# F-statistic: 1.135 on 1 and 58 DF,  p-value: 0.291
+
+
+
+
+# Root 15N
+root_15N_rgr <- ggplot(trait_growth_df, aes(x = root_15N, y = mean_RGR, colour = full)) +
+  geom_point(alpha = 1, cex = 2.5, aes(shape = full)) +
+  geom_smooth(method = "lm", se = TRUE, color = "black", linetype = 2) +
+  theme_bw() +
+  scale_color_manual(values=all_hosts, 
+                     name="Focal Species",
+                     breaks=c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", 
+                              "T. plicata", "T. heterophylla"),
+                     labels=c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", 
+                              "T. plicata", "T. heterophylla")) +
+  scale_shape_manual(
+    values = species_shapes, 
+    breaks = c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", "T. plicata", "T. heterophylla"), 
+    name = "Focal Species",  
+    labels=c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", "T. plicata", "T. heterophylla")) +
+  labs(x = "15N Isotope per mil", y = expression("Mean RGR ("*yr^{-1}*")")) +
+  theme(
+    axis.text.x = element_text(size = 12, colour="black"),
+    axis.text.y = element_text(size = 12, colour="black"),
+    axis.title.y = element_text(size = 12, colour="black"),
+    axis.title.x = element_text(size = 12, colour="black"), 
+    strip.text = element_text(size = 12, colour="black")) +
+  theme(legend.text = element_text(size = 12, colour="black"), 
+        legend.title = element_text(size = 12, face = "bold", colour="black")) +
+  theme(legend.position = "none")
+
+root_15N_rgr
+
+
+# test relationships 
+lm_root_15N_rgr <- lm(mean_RGR ~ root_15N, data = trait_growth_df)
+
+summary(lm_root_15N_rgr)
+
+
+# Multiple R-squared:  0.04595,	Adjusted R-squared:  0.02951 
+# F-statistic: 2.794 on 1 and 58 DF,  p-value: 0.1
+
+
+# Root 13C
+root_13C_rgr <- ggplot(trait_growth_df, aes(x = root_13C, y = mean_RGR, colour = full)) +
+  geom_point(alpha = 1, cex = 2.5, aes(shape = full)) +
+  geom_smooth(method = "lm", se = TRUE, color = "black", linetype = 2) +
+  theme_bw() +
+  scale_color_manual(values=all_hosts, 
+                     name="Focal Species",
+                     breaks=c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", 
+                              "T. plicata", "T. heterophylla"),
+                     labels=c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", 
+                              "T. plicata", "T. heterophylla")) +
+  scale_shape_manual(
+    values = species_shapes, 
+    breaks = c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", "T. plicata", "T. heterophylla"), 
+    name = "Focal Species",  
+    labels=c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", "T. plicata", "T. heterophylla")) +
+  guides(colour = guide_legend(nrow = 1, ncol = 7), shape = guide_legend(nrow = 1, ncol = 7),) + 
+  labs(x = "13C Isotope per mil", y = expression("Mean RGR ("*yr^{-1}*")")) +
+  theme(
+    axis.text.x = element_text(size = 12, colour="black"),
+    axis.text.y = element_text(size = 12, colour="black"),
+    axis.title.y = element_text(size = 12, colour="black"),
+    axis.title.x = element_text(size = 12, colour="black"), 
+    strip.text = element_text(size = 12, colour="black")) +
+  theme(legend.text = element_text(size = 12, colour="black", face = "italic"), 
+        legend.title = element_text(size = 12, face = "bold", colour="black")) +
+  theme(legend.position = "none")
+
+root_13C_rgr
+
+
+# test relationships 
+lm_root_13C_rgr <- lm(mean_RGR ~ root_13C, data = trait_growth_df)
+
+summary(lm_root_13C_rgr)
+
+# Multiple R-squared:  0.01855,	Adjusted R-squared:  0.001628 
+# F-statistic: 1.096 on 1 and 58 DF,  p-value: 0.2994
+
+
+#################################################################################
+
+############################################## -- 
+# (5) GATHER SIGNIFICANT RESULTS OF INTEREST  
 ############################################## -- 
 
 # Gather up the most interesting relationships and organize the plots to compare the relationships of RGR
@@ -995,6 +1581,48 @@ RGR_plots <- plot_grid(all_PC1_rgr_all, all_PC2_rgr_all,
                                   ncol = 2, nrow = 3, labels = c('(a)', '(b)', '(c)', '(d)', '(e)', '(f)'))
 
 RGR_plots
+
+
+# Plot with just the leaf and root traits 
+
+RGR_plots_2 <- plot_grid(leaf_PC1_rgr_all, root_PC1_rgr_all, 
+                         leaf_PC2_rgr_all, root_PC2_rgr_all,
+                         ncol = 2, nrow = 2, labels = c('(a)', '(b)', '(c)', '(d)'))
+
+RGR_plots_2 
+
+
+# Save figure 
+ggsave("~/Dropbox/WSU/WFDP_Chapter_3_Project/Demography/Figures/trait_RGR_plots.png", 
+       plot = RGR_plots_2, width = 7, height = 6, units = "in", dpi = 300)
+
+
+
+# Separate trait~RGR plots
+
+leaf_trait_RGR_plots <- plot_grid(leaf_sla_rgr, leaf_lma_rgr, leaf_ldmc_rgr, leaf_pctC_rgr, leaf_pctN_rgr, 
+                             leaf_CN_rgr, leaf_13C_rgr, leaf_15N_rgr,
+                             ncol = 3, nrow = 3, labels = c('(a)', '(b)', '(c)', '(d)', '(e)', '(f)', '(g)', '(h)'))
+
+leaf_trait_RGR_plots
+
+
+# Save figure 
+ggsave("~/Dropbox/WSU/WFDP_Chapter_3_Project/Demography/Figures/leaf_trait_RGR_plots.png", 
+       plot = leaf_trait_RGR_plots, width = 12, height = 11, units = "in", dpi = 300)
+
+
+
+root_trait_RGR_plots <- plot_grid(root_sra_rgr, root_srl_rgr, root_rdmc_rgr, root_pctC_rgr, root_pctN_rgr, 
+                                  root_CN_rgr, root_13C_rgr, root_15N_rgr, root_dia_rgr, 
+                                  ncol = 3, nrow = 3, labels = c('(a)', '(b)', '(c)', '(d)', '(e)', '(f)', '(g)', '(h)', '(i)'))
+
+root_trait_RGR_plots
+
+
+# Save figure 
+ggsave("~/Dropbox/WSU/WFDP_Chapter_3_Project/Demography/Figures/root_trait_RGR_plots.png", 
+       plot = root_trait_RGR_plots, width = 12, height = 11, units = "in", dpi = 300)
 
 
 

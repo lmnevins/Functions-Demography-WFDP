@@ -210,69 +210,36 @@ diff_myco_growth_summary_all <- bind_rows(diff_myco_growth_summary_09, diff_myco
                  # ABAM      ABGR      ALRU        CONU     TABR        THPL       TSHE        
 all_hosts <- c("#FFD373", "#FD8021", "#E05400", "#0073CC","#003488", "#001D59", "#001524")
 
+# Define shapes for species 
+
+# ABAM, ABGR, ALRU, CONU, TABR, THPL, TSHE  
+species_shapes <- c(15, 16, 17, 18, 7, 8, 9)
 
 
-RGR_spp <- ggplot(crowd_growth_summary_09, aes(x = focal_species, y = mean_RGR, fill = focal_species)) +
-  geom_boxplot() +
-  theme_minimal() +
-  scale_fill_manual(values=all_hosts, 
-                      name="Host Species",
-                      breaks=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE"),
-                      labels=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE")) +
-  labs(
-    title = "",
-    x = "",
-    y = expression("Mean RGR ("*yr^{-1}*")")) +
-  theme(
-    axis.text.x = element_text(size = 11, colour="black"),
-    axis.text.y = element_text(size = 11, colour="black"),
-    axis.title.y = element_text(size = 12, colour="black"),
-    axis.title.x = element_text(size = 12, colour="black")) +
-  theme(legend.position = "none")
+# make dataframe of full species names 
+sci_name <- c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", 
+          "T. plicata", "T. heterophylla")
 
-RGR_spp
+Species <- c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE")
 
 
-# Test for significant differences between species 
-aov_RGR <- aov(mean_RGR ~ focal_species, data = crowd_growth_summary_09)
-summary(aov_RGR)
-# p = 0.00048
+taxa <- data.frame(sci_name, Species)
 
-tuk_RGR <- TukeyHSD(aov_RGR)
-tuk_RGR
+# Merge to all of the files 
+diams <- merge(diams, taxa, by = "Species")
 
-# 
-# $focal_species
-# diff          lwr          upr     p adj
-# ABGR-ABAM -6.952969e-03 -0.022096994  0.008191056 0.7944637
-# ALRU-ABAM  1.045281e-02 -0.006896851  0.027802470 0.5224181
-# CONU-ABAM -4.838083e-03 -0.017953193  0.008277028 0.9150790
-# TABR-ABAM -1.493780e-02 -0.028412297 -0.001463307 0.0208287
-# THPL-ABAM  4.057208e-03 -0.009417287  0.017531703 0.9669103
-# TSHE-ABAM -4.903199e-03 -0.018018310  0.008211911 0.9099780
-# ALRU-ABGR  1.740578e-02 -0.001524253  0.036335810 0.0905799
-# CONU-ABGR  2.114886e-03 -0.013029139  0.017258911 0.9994799
-# TABR-ABGR -7.984833e-03 -0.023441139  0.007471473 0.6919172
-# THPL-ABGR  1.101018e-02 -0.004446129  0.026466483 0.3208679
-# TSHE-ABGR  2.049770e-03 -0.013094256  0.017193795 0.9995655
-# CONU-ALRU -1.529089e-02 -0.032640553  0.002058768 0.1178372
-# TABR-ALRU -2.539061e-02 -0.043013512 -0.007767712 0.0009584
-# THPL-ALRU -6.395601e-03 -0.024018502  0.011227299 0.9209775
-# TSHE-ALRU -1.535601e-02 -0.032705670  0.001993651 0.1148899
-# TABR-CONU -1.009972e-02 -0.023574214  0.003374776 0.2638202
-# THPL-CONU  8.895291e-03 -0.004579204  0.022369786 0.4115527
-# TSHE-CONU -6.511657e-05 -0.013180227  0.013049994 1.0000000
-# THPL-TABR  1.899501e-02  0.005170470  0.032819551 0.0018498
-# TSHE-TABR  1.003460e-02 -0.003439892  0.023509098 0.2708414
-# TSHE-THPL -8.960408e-03 -0.022434903  0.004514088 0.4026969
 
-# Significant Differences: 
-
-# TABR-ABAM p = 0.020
-# TABR-ALRU p = 0.001
-# THPL-TABR p = 0.002
-
-# TABR has a negative RGR on average, because some of its bark sloughs off, probably. 
+# Doing the combined and 9 m neighborhood files right now, could add in 20 m later if desired. 
+crowd_growth_summary_09 <- merge(crowd_growth_summary_09, taxa, by = "Species")
+crowd_growth_summary_all <- merge(crowd_growth_summary_all, taxa, by = "Species")
+con_growth_summary_09 <- merge(con_growth_summary_09, taxa, by = "Species")
+con_growth_summary_all <- merge(con_growth_summary_all, taxa, by = "Species")
+het_growth_summary_09 <- merge(het_growth_summary_09, taxa, by = "Species")
+het_growth_summary_all <- merge(het_growth_summary_all, taxa, by = "Species")
+same_myco_growth_summary_09 <- merge(same_myco_growth_summary_09, taxa, by = "Species")
+same_myco_growth_summary_all <- merge(same_myco_growth_summary_all, taxa, by = "Species")
+diff_myco_growth_summary_09 <- merge(diff_myco_growth_summary_09, taxa, by = "Species")
+diff_myco_growth_summary_all <- merge(diff_myco_growth_summary_all, taxa, by = "Species")
 
 #################################### -- 
 # VISUALIZE COMBINED NEIGHBORHOODS  
@@ -288,14 +255,21 @@ crowd_growth_summary_all <- crowd_growth_summary_all %>%
 
 
 # Relationship between focal tree RGR and # neighbors 
-RGR_num_neigh <- ggplot(crowd_growth_summary_09, aes(x = num_neighbors, y = mean_RGR, colour = Species)) +
-  geom_point(alpha = 1, cex = 2.5) +
-  geom_smooth(method = "lm", se = TRUE, color = "black") +
+RGR_num_neigh <- ggplot(crowd_growth_summary_09, aes(x = num_neighbors, y = mean_RGR, colour = sci_name)) +
+  geom_point(alpha = 1, cex = 2.5, aes(shape = sci_name)) +
+  geom_smooth(method = "lm", se = TRUE, color = "black", linetype = 1) +
   theme_bw() +
-  scale_colour_manual(values=all_hosts, 
-                      name="Focal Species",
-                      breaks=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE"),
-                      labels=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE")) +
+  scale_color_manual(values=all_hosts, 
+                     name="Focal Species",
+                     breaks=c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", 
+                              "T. plicata", "T. heterophylla"),
+                     labels=c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", 
+                              "T. plicata", "T. heterophylla")) +
+  scale_shape_manual(
+    values = species_shapes, 
+    breaks = c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", "T. plicata", "T. heterophylla"), 
+    name = "Focal Species",  
+    labels=c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", "T. plicata", "T. heterophylla")) +
   labs(x = "Number of Neighbors", y = expression("Mean RGR ("*yr^{-1}*")")) +
   theme(
     axis.text.x = element_text(size = 11, colour="black"),
@@ -303,9 +277,9 @@ RGR_num_neigh <- ggplot(crowd_growth_summary_09, aes(x = num_neighbors, y = mean
     axis.title.y = element_text(size = 12, colour="black"),
     axis.title.x = element_text(size = 12, colour="black"), 
     strip.text = element_text(size = 12, colour="black")) +
-  theme(legend.text = element_text(size = 11, colour="black"), 
+  theme(legend.text = element_text(size = 11, colour="black", face = "italic"), 
         legend.title = element_text(size = 12, face = "bold", colour="black")) +
-  theme(legend.position = "right")
+  theme(legend.position = "none")
 
 # Having this plot generate the legend that can be used for other plots down below. Everyone else will 
 # have the legend hidden so it doesn't duplicate when the plots are compiled. 
@@ -333,14 +307,21 @@ summary(RGR_mod1_20)
 
 
 # Relationship between focal tree RGR and mean neighbor DBH 
-RGR_size_neigh <- ggplot(crowd_growth_summary_09, aes(x = mean_neighbor_DBH, y = mean_RGR, colour = Species)) +
-  geom_point(alpha = 1, cex = 2.5) +
-  geom_smooth(method = "lm", se = TRUE, color = "black") +
+RGR_size_neigh <- ggplot(crowd_growth_summary_09, aes(x = mean_neighbor_DBH, y = mean_RGR, colour = sci_name)) +
+  geom_point(alpha = 1, cex = 2.5, aes(shape = sci_name)) +
+  geom_smooth(method = "lm", se = TRUE, color = "black", linetype = 1) +
   theme_bw() +
-  scale_colour_manual(values=all_hosts, 
-                      name="Focal Species",
-                      breaks=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE"),
-                      labels=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE")) +
+  scale_color_manual(values=all_hosts, 
+                     name="Focal Species",
+                     breaks=c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", 
+                              "T. plicata", "T. heterophylla"),
+                     labels=c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", 
+                              "T. plicata", "T. heterophylla")) +
+  scale_shape_manual(
+    values = species_shapes, 
+    breaks = c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", "T. plicata", "T. heterophylla"), 
+    name = "Focal Species",  
+    labels=c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", "T. plicata", "T. heterophylla")) +
   labs(x = "Mean Neighbor DBH", y = expression("Mean RGR ("*yr^{-1}*")")) +
   theme(
     axis.text.x = element_text(size = 11, colour="black"),
@@ -374,14 +355,21 @@ summary(RGR_mod2_20)
 
 
 # Relationship between focal tree RGR and crowding index
-RGR_crowd_neigh <- ggplot(crowd_growth_summary_09, aes(x = crowding_index, y = mean_RGR, colour = Species)) +
-  geom_point(alpha = 1, cex = 2.5) +
-  geom_smooth(method = "lm", se = TRUE, color = "black") +
+RGR_crowd_neigh <- ggplot(crowd_growth_summary_09, aes(x = crowding_index, y = mean_RGR, colour = sci_name)) +
+  geom_point(alpha = 1, cex = 2.5, aes(shape = sci_name)) +
+  geom_smooth(method = "lm", se = TRUE, color = "black", linetype = 2) +
   theme_bw() +
-  scale_colour_manual(values=all_hosts, 
-                      name="Focal Species",
-                      breaks=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE"),
-                      labels=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE")) +
+  scale_color_manual(values=all_hosts, 
+                     name="Focal Species",
+                     breaks=c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", 
+                              "T. plicata", "T. heterophylla"),
+                     labels=c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", 
+                              "T. plicata", "T. heterophylla")) +
+  scale_shape_manual(
+    values = species_shapes, 
+    breaks = c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", "T. plicata", "T. heterophylla"), 
+    name = "Focal Species",  
+    labels=c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", "T. plicata", "T. heterophylla")) +
   labs(x = "Crowding Index", y = expression("Mean RGR ("*yr^{-1}*")")) +
   theme(
     axis.text.x = element_text(size = 11, colour="black"),
@@ -421,15 +409,21 @@ con_growth_summary_all <- con_growth_summary_all %>%
   mutate(radius = factor(radius, levels = c("9m", "20m")))
 
 # Relationship between focal tree RGR and # conspecific neighbors 
-RGR_num_con_neigh <- ggplot(con_growth_summary_09, aes(x = num_neighbors, y = mean_RGR, colour = Species)) +
-  geom_point(alpha = 1, cex = 2.5) +
-  geom_smooth(method = "lm", se = TRUE, color = "black") +
- # facet_wrap(~ radius, scales = "free_x") +
+RGR_num_con_neigh <- ggplot(con_growth_summary_09, aes(x = num_neighbors, y = mean_RGR, colour = sci_name)) +
+  geom_point(alpha = 1, cex = 2.5, aes(shape = sci_name)) +
+  geom_smooth(method = "lm", se = TRUE, color = "black", linetype = 2) +
   theme_bw() +
-  scale_colour_manual(values=all_hosts, 
-                      name="Focal Species",
-                      breaks=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE"),
-                      labels=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE")) +
+  scale_color_manual(values=all_hosts, 
+                     name="Focal Species",
+                     breaks=c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", 
+                              "T. plicata", "T. heterophylla"),
+                     labels=c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", 
+                              "T. plicata", "T. heterophylla")) +
+  scale_shape_manual(
+    values = species_shapes, 
+    breaks = c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", "T. plicata", "T. heterophylla"), 
+    name = "Focal Species",  
+    labels=c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", "T. plicata", "T. heterophylla")) +
   labs(x = "Number of Conspecific Neighbors", y = expression("Mean RGR ("*yr^{-1}*")")) +
   theme(
     axis.text.x = element_text(size = 11, colour="black"),
@@ -463,15 +457,21 @@ summary(RGR_mod_con1_20)
 
 
 # Relationship between focal tree RGR and mean conspecific neighbor DBH 
-RGR_size_con_neigh <- ggplot(con_growth_summary_09, aes(x = mean_neighbor_DBH, y = mean_RGR, colour = Species)) +
-  geom_point(alpha = 1, cex = 2.5) +
-  geom_smooth(method = "lm", se = TRUE, color = "black") +
-#  facet_wrap(~ radius, scales = "free_x") +
+RGR_size_con_neigh <- ggplot(con_growth_summary_09, aes(x = mean_neighbor_DBH, y = mean_RGR, colour = sci_name)) +
+  geom_point(alpha = 1, cex = 2.5, aes(shape = sci_name)) +
+  geom_smooth(method = "lm", se = TRUE, color = "black", linetype = 2) +
   theme_bw() +
-  scale_colour_manual(values=all_hosts, 
-                      name="Focal Species",
-                      breaks=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE"),
-                      labels=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE")) +
+  scale_color_manual(values=all_hosts, 
+                     name="Focal Species",
+                     breaks=c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", 
+                              "T. plicata", "T. heterophylla"),
+                     labels=c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", 
+                              "T. plicata", "T. heterophylla")) +
+  scale_shape_manual(
+    values = species_shapes, 
+    breaks = c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", "T. plicata", "T. heterophylla"), 
+    name = "Focal Species",  
+    labels=c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", "T. plicata", "T. heterophylla")) +
   labs(x = "Mean Conspecific Neighbor DBH", y = expression("Mean RGR ("*yr^{-1}*")")) +
   theme(
     axis.text.x = element_text(size = 11, colour="black"),
@@ -505,15 +505,21 @@ summary(RGR_mod_con_20)
 
 
 # Relationship between focal tree RGR and crowding index
-RGR_crowd_con_neigh <- ggplot(con_growth_summary_09, aes(x = crowding_index, y = mean_RGR, colour = Species)) +
-  geom_point(alpha = 1, cex = 2.5) +
-  geom_smooth(method = "lm", se = TRUE, color = "black") +
- # facet_wrap(~ radius, scales = "free_x") +
+RGR_crowd_con_neigh <- ggplot(con_growth_summary_09, aes(x = crowding_index, y = mean_RGR, colour = sci_name)) +
+  geom_point(alpha = 1, cex = 2.5, aes(shape = sci_name)) +
+  geom_smooth(method = "lm", se = TRUE, color = "black", linetype = 2) +
   theme_bw() +
-  scale_colour_manual(values=all_hosts, 
-                      name="Focal Species",
-                      breaks=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE"),
-                      labels=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE")) +
+  scale_color_manual(values=all_hosts, 
+                     name="Focal Species",
+                     breaks=c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", 
+                              "T. plicata", "T. heterophylla"),
+                     labels=c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", 
+                              "T. plicata", "T. heterophylla")) +
+  scale_shape_manual(
+    values = species_shapes, 
+    breaks = c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", "T. plicata", "T. heterophylla"), 
+    name = "Focal Species",  
+    labels=c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", "T. plicata", "T. heterophylla")) +
   labs(x = "Conspecific Crowding Index", y = expression("Mean RGR ("*yr^{-1}*")")) +
   theme(
     axis.text.x = element_text(size = 11, colour="black"),
@@ -554,15 +560,21 @@ het_growth_summary_all <- het_growth_summary_all %>%
 
 
 # Relationship between focal tree RGR and # heterospecific neighbors 
-RGR_num_het_neigh <- ggplot(het_growth_summary_09, aes(x = num_neighbors, y = mean_RGR, colour = Species)) +
-  geom_point(alpha = 1, cex = 2.5) +
-  geom_smooth(method = "lm", se = TRUE, color = "black") +
-#  facet_wrap(~ radius, scales = "free_x") +
+RGR_num_het_neigh <- ggplot(het_growth_summary_09, aes(x = num_neighbors, y = mean_RGR, colour = sci_name)) +
+  geom_point(alpha = 1, cex = 2.5, aes(shape = sci_name)) +
+  geom_smooth(method = "lm", se = TRUE, color = "black", linetype = 1) +
   theme_bw() +
-  scale_colour_manual(values=all_hosts, 
-                      name="Focal Species",
-                      breaks=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE"),
-                      labels=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE")) +
+  scale_color_manual(values=all_hosts, 
+                     name="Focal Species",
+                     breaks=c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", 
+                              "T. plicata", "T. heterophylla"),
+                     labels=c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", 
+                              "T. plicata", "T. heterophylla")) +
+  scale_shape_manual(
+    values = species_shapes, 
+    breaks = c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", "T. plicata", "T. heterophylla"), 
+    name = "Focal Species",  
+    labels=c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", "T. plicata", "T. heterophylla")) +
   labs(x = "Number of Heterospecific Neighbors", y = expression("Mean RGR ("*yr^{-1}*")")) +
   theme(
     axis.text.x = element_text(size = 11, colour="black"),
@@ -597,15 +609,21 @@ summary(RGR_mod_het1_20)
 
 
 # Relationship between focal tree RGR and mean heterospecific neighbor DBH 
-RGR_size_het_neigh <- ggplot(het_growth_summary_09, aes(x = mean_neighbor_DBH, y = mean_RGR, colour = Species)) +
-  geom_point(alpha = 1, cex = 2.5) +
-  geom_smooth(method = "lm", se = TRUE, color = "black") +
- # facet_wrap(~ radius, scales = "free_x") +
+RGR_size_het_neigh <- ggplot(het_growth_summary_09, aes(x = mean_neighbor_DBH, y = mean_RGR, colour = sci_name)) +
+  geom_point(alpha = 1, cex = 2.5, aes(shape = sci_name)) +
+  geom_smooth(method = "lm", se = TRUE, color = "black", linetype = 1) +
   theme_bw() +
-  scale_colour_manual(values=all_hosts, 
-                      name="Focal Species",
-                      breaks=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE"),
-                      labels=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE")) +
+  scale_color_manual(values=all_hosts, 
+                     name="Focal Species",
+                     breaks=c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", 
+                              "T. plicata", "T. heterophylla"),
+                     labels=c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", 
+                              "T. plicata", "T. heterophylla")) +
+  scale_shape_manual(
+    values = species_shapes, 
+    breaks = c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", "T. plicata", "T. heterophylla"), 
+    name = "Focal Species",  
+    labels=c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", "T. plicata", "T. heterophylla")) +
   labs(x = "Mean Heterospecific Neighbor DBH", y = expression("Mean RGR ("*yr^{-1}*")")) +
   theme(
     axis.text.x = element_text(size = 11, colour="black"),
@@ -640,15 +658,21 @@ summary(RGR_mod_het2_20)
 
 
 # Relationship between focal tree RGR and crowding index
-RGR_crowd_het_neigh <- ggplot(het_growth_summary_09, aes(x = crowding_index, y = mean_RGR, colour = Species)) +
-  geom_point(alpha = 1, cex = 2.5) +
-  geom_smooth(method = "lm", se = TRUE, color = "black") +
- # facet_wrap(~ radius, scales = "free_x") +
+RGR_crowd_het_neigh <- ggplot(het_growth_summary_09, aes(x = crowding_index, y = mean_RGR, colour = sci_name)) +
+  geom_point(alpha = 1, cex = 2.5, aes(shape = sci_name)) +
+  geom_smooth(method = "lm", se = TRUE, color = "black", linetype = 2) +
   theme_bw() +
-  scale_colour_manual(values=all_hosts, 
-                      name="Focal Species",
-                      breaks=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE"),
-                      labels=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE")) +
+  scale_color_manual(values=all_hosts, 
+                     name="Focal Species",
+                     breaks=c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", 
+                              "T. plicata", "T. heterophylla"),
+                     labels=c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", 
+                              "T. plicata", "T. heterophylla")) +
+  scale_shape_manual(
+    values = species_shapes, 
+    breaks = c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", "T. plicata", "T. heterophylla"), 
+    name = "Focal Species",  
+    labels=c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", "T. plicata", "T. heterophylla")) +
   labs(x = "Heterospecific Crowding Index", y = expression("Mean RGR ("*yr^{-1}*")")) +
   theme(
     axis.text.x = element_text(size = 11, colour="black"),
@@ -689,15 +713,21 @@ het_growth_summary_no_outlier <- het_growth_summary_all %>% filter(focal_cell !=
 het_growth_summary_no_outlier_09 <- het_growth_summary_09 %>% filter(focal_cell != "H30") %>% droplevels()
 
 # Visualize again without outlier 
-RGR_crowd_het_neigh_no_outlier <- ggplot(het_growth_summary_no_outlier_09, aes(x = crowding_index, y = mean_RGR, colour = Species)) +
-  geom_point(alpha = 1, cex = 2.5) +
-  geom_smooth(method = "lm", se = TRUE, color = "black") +
-#  facet_wrap(~ radius, scales = "free_x") +
+RGR_crowd_het_neigh_no_outlier <- ggplot(het_growth_summary_no_outlier_09, aes(x = crowding_index, y = mean_RGR, colour = sci_name)) +
+  geom_point(alpha = 1, cex = 2.5, aes(shape = sci_name)) +
+  geom_smooth(method = "lm", se = TRUE, color = "black", linetype = 2) +
   theme_bw() +
-  scale_colour_manual(values=all_hosts, 
-                      name="Focal Species",
-                      breaks=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE"),
-                      labels=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE")) +
+  scale_color_manual(values=all_hosts, 
+                     name="Focal Species",
+                     breaks=c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", 
+                              "T. plicata", "T. heterophylla"),
+                     labels=c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", 
+                              "T. plicata", "T. heterophylla")) +
+  scale_shape_manual(
+    values = species_shapes, 
+    breaks = c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", "T. plicata", "T. heterophylla"), 
+    name = "Focal Species",  
+    labels=c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", "T. plicata", "T. heterophylla")) +
   labs(x = "Heterospecific Crowding Index", y = expression("Mean RGR ("*yr^{-1}*")")) +
   theme(
     axis.text.x = element_text(size = 11, colour="black"),
@@ -782,15 +812,21 @@ same_myco_growth_summary_all <- same_myco_growth_summary_all %>%
 
 
 # Relationship between focal tree RGR and # same mycorrhizal neighbors 
-RGR_num_same_myco_neigh <- ggplot(same_myco_growth_summary_09, aes(x = num_neighbors, y = mean_RGR, colour = Species)) +
-  geom_point(alpha = 1, cex = 2.5) +
-  geom_smooth(method = "lm", se = TRUE, color = "black") +
- # facet_wrap(~ radius, scales = "free_x") +
+RGR_num_same_myco_neigh <- ggplot(same_myco_growth_summary_09, aes(x = num_neighbors, y = mean_RGR, colour = sci_name)) +
+  geom_point(alpha = 1, cex = 2.5, aes(shape = sci_name)) +
+  geom_smooth(method = "lm", se = TRUE, color = "black", linetype = 2) +
   theme_bw() +
-  scale_colour_manual(values=all_hosts, 
-                      name="Focal Species",
-                      breaks=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE"),
-                      labels=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE")) +
+  scale_color_manual(values=all_hosts, 
+                     name="Focal Species",
+                     breaks=c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", 
+                              "T. plicata", "T. heterophylla"),
+                     labels=c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", 
+                              "T. plicata", "T. heterophylla")) +
+  scale_shape_manual(
+    values = species_shapes, 
+    breaks = c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", "T. plicata", "T. heterophylla"), 
+    name = "Focal Species",  
+    labels=c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", "T. plicata", "T. heterophylla")) +
   labs(x = "Number of Con-Mycorrhizal Neighbors", y = expression("Mean RGR ("*yr^{-1}*")")) +
   theme(
     axis.text.x = element_text(size = 11, colour="black"),
@@ -825,15 +861,21 @@ summary(RGR_mod_same_myco1_20)
 
 
 # Relationship between focal tree RGR and mean same mycorrhizal neighbor DBH 
-RGR_size_same_myco_neigh <- ggplot(same_myco_growth_summary_09, aes(x = mean_neighbor_DBH, y = mean_RGR, colour = Species)) +
-  geom_point(alpha = 1, cex = 2.5) +
-  geom_smooth(method = "lm", se = TRUE, color = "black") +
-#  facet_wrap(~ radius, scales = "free_x") +
+RGR_size_same_myco_neigh <- ggplot(same_myco_growth_summary_09, aes(x = mean_neighbor_DBH, y = mean_RGR, colour = sci_name)) +
+  geom_point(alpha = 1, cex = 2.5, aes(shape = sci_name)) +
+  geom_smooth(method = "lm", se = TRUE, color = "black", linetype = 1) +
   theme_bw() +
-  scale_colour_manual(values=all_hosts, 
-                      name="Focal Species",
-                      breaks=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE"),
-                      labels=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE")) +
+  scale_color_manual(values=all_hosts, 
+                     name="Focal Species",
+                     breaks=c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", 
+                              "T. plicata", "T. heterophylla"),
+                     labels=c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", 
+                              "T. plicata", "T. heterophylla")) +
+  scale_shape_manual(
+    values = species_shapes, 
+    breaks = c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", "T. plicata", "T. heterophylla"), 
+    name = "Focal Species",  
+    labels=c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", "T. plicata", "T. heterophylla")) +
   labs(x = "Mean Con-Mycorrhizal Neighbor DBH", y = expression("Mean RGR ("*yr^{-1}*")")) +
   theme(
     axis.text.x = element_text(size = 11, colour="black"),
@@ -868,15 +910,21 @@ summary(RGR_mod_same_myco2_20)
 
 
 # Relationship between focal tree RGR and crowding index
-RGR_crowd_same_myco_neigh <- ggplot(same_myco_growth_summary_09, aes(x = crowding_index, y = mean_RGR, colour = Species)) +
-  geom_point(alpha = 1, cex = 2.5) +
-  geom_smooth(method = "lm", se = TRUE, color = "black") +
- # facet_wrap(~ radius, scales = "free_x") +
+RGR_crowd_same_myco_neigh <- ggplot(same_myco_growth_summary_09, aes(x = crowding_index, y = mean_RGR, colour = sci_name)) +
+  geom_point(alpha = 1, cex = 2.5, aes(shape = sci_name)) +
+  geom_smooth(method = "lm", se = TRUE, color = "black", linetype = 2) +
   theme_bw() +
-  scale_colour_manual(values=all_hosts, 
-                      name="Focal Species",
-                      breaks=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE"),
-                      labels=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE")) +
+  scale_color_manual(values=all_hosts, 
+                     name="Focal Species",
+                     breaks=c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", 
+                              "T. plicata", "T. heterophylla"),
+                     labels=c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", 
+                              "T. plicata", "T. heterophylla")) +
+  scale_shape_manual(
+    values = species_shapes, 
+    breaks = c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", "T. plicata", "T. heterophylla"), 
+    name = "Focal Species",  
+    labels=c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", "T. plicata", "T. heterophylla")) +
   labs(x = "Con-Mycorrhizal Crowding Index", y = expression("Mean RGR ("*yr^{-1}*")")) +
   theme(
     axis.text.x = element_text(size = 11, colour="black"),
@@ -918,15 +966,21 @@ diff_myco_growth_summary_all <- diff_myco_growth_summary_all %>%
 
 
 # Relationship between focal tree RGR and different mycorrhizal neighbors 
-RGR_num_diff_myco_neigh <- ggplot(diff_myco_growth_summary_09, aes(x = num_neighbors, y = mean_RGR, colour = Species)) +
-  geom_point(alpha = 1, cex = 2.5) +
-  geom_smooth(method = "lm", se = TRUE, color = "black") +
- # facet_wrap(~ radius, scales = "free_x") +
+RGR_num_diff_myco_neigh <- ggplot(diff_myco_growth_summary_09, aes(x = num_neighbors, y = mean_RGR, colour = sci_name)) +
+  geom_point(alpha = 1, cex = 2.5, aes(shape = sci_name)) +
+  geom_smooth(method = "lm", se = TRUE, color = "black", linetype = 1) +
   theme_bw() +
-  scale_colour_manual(values=all_hosts, 
-                      name="Focal Species",
-                      breaks=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE"),
-                      labels=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE")) +
+  scale_color_manual(values=all_hosts, 
+                     name="Focal Species",
+                     breaks=c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", 
+                              "T. plicata", "T. heterophylla"),
+                     labels=c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", 
+                              "T. plicata", "T. heterophylla")) +
+  scale_shape_manual(
+    values = species_shapes, 
+    breaks = c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", "T. plicata", "T. heterophylla"), 
+    name = "Focal Species",  
+    labels=c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", "T. plicata", "T. heterophylla")) +
   labs(x = "Number of Hetero-Mycorrhizal Neighbors", y = expression("Mean RGR ("*yr^{-1}*")")) +
   theme(
     axis.text.x = element_text(size = 11, colour="black"),
@@ -961,15 +1015,21 @@ summary(RGR_mod_diff_myco1_20)
 
 
 # Relationship between focal tree RGR and mean different mycorrhizal neighbor DBH 
-RGR_size_diff_myco_neigh <- ggplot(diff_myco_growth_summary_09, aes(x = mean_neighbor_DBH, y = mean_RGR, colour = Species)) +
-  geom_point(alpha = 1, cex = 2.5) +
-  geom_smooth(method = "lm", se = TRUE, color = "black") +
- # facet_wrap(~ radius, scales = "free_x") +
+RGR_size_diff_myco_neigh <- ggplot(diff_myco_growth_summary_09, aes(x = mean_neighbor_DBH, y = mean_RGR, colour = sci_name)) +
+  geom_point(alpha = 1, cex = 2.5, aes(shape = sci_name)) +
+  geom_smooth(method = "lm", se = TRUE, color = "black", linetype = 2) +
   theme_bw() +
-  scale_colour_manual(values=all_hosts, 
-                      name="Focal Species",
-                      breaks=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE"),
-                      labels=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE")) +
+  scale_color_manual(values=all_hosts, 
+                     name="Focal Species",
+                     breaks=c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", 
+                              "T. plicata", "T. heterophylla"),
+                     labels=c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", 
+                              "T. plicata", "T. heterophylla")) +
+  scale_shape_manual(
+    values = species_shapes, 
+    breaks = c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", "T. plicata", "T. heterophylla"), 
+    name = "Focal Species",  
+    labels=c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", "T. plicata", "T. heterophylla")) +
   labs(x = "Mean Hetero-Mycorrhizal Neighbor DBH", y = expression("Mean RGR ("*yr^{-1}*")")) +
   theme(
     axis.text.x = element_text(size = 11, colour="black"),
@@ -1004,15 +1064,21 @@ summary(RGR_mod_diff_myco2_20)
 
 
 # Relationship between focal tree RGR and crowding index
-RGR_crowd_diff_myco_neigh <- ggplot(diff_myco_growth_summary_09, aes(x = crowding_index, y = mean_RGR, colour = Species)) +
-  geom_point(alpha = 1, cex = 2.5) +
-  geom_smooth(method = "lm", se = TRUE, color = "black") +
- # facet_wrap(~ radius, scales = "free_x") +
+RGR_crowd_diff_myco_neigh <- ggplot(diff_myco_growth_summary_09, aes(x = crowding_index, y = mean_RGR, colour = sci_name)) +
+  geom_point(alpha = 1, cex = 2.5, aes(shape = sci_name)) +
+  geom_smooth(method = "lm", se = TRUE, color = "black", linetype = 2) +
   theme_bw() +
-  scale_colour_manual(values=all_hosts, 
-                      name="Focal Species",
-                      breaks=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE"),
-                      labels=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE")) +
+  scale_color_manual(values=all_hosts, 
+                     name="Focal Species",
+                     breaks=c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", 
+                              "T. plicata", "T. heterophylla"),
+                     labels=c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", 
+                              "T. plicata", "T. heterophylla")) +
+  scale_shape_manual(
+    values = species_shapes, 
+    breaks = c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", "T. plicata", "T. heterophylla"), 
+    name = "Focal Species",  
+    labels=c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", "T. plicata", "T. heterophylla")) +
   labs(x = "Hetero-Mycorrhizal Crowding Index", y = expression("Mean RGR ("*yr^{-1}*")")) +
   theme(
     axis.text.x = element_text(size = 11, colour="black"),
@@ -1054,15 +1120,21 @@ diff_myco_growth_summary_no_outlier_09 <- diff_myco_growth_summary_09 %>% filter
 
 
 # Visualize again without outlier 
-RGR_crowd_diff_myco_no_outlier <- ggplot(diff_myco_growth_summary_no_outlier_09, aes(x = crowding_index, y = mean_RGR, colour = Species)) +
-  geom_point(alpha = 1, cex = 2.5) +
-  geom_smooth(method = "lm", se = TRUE, color = "black") +
- # facet_wrap(~ radius, scales = "free_x") +
+RGR_crowd_diff_myco_no_outlier <- ggplot(diff_myco_growth_summary_no_outlier_09, aes(x = crowding_index, y = mean_RGR, colour = sci_name)) +
+  geom_point(alpha = 1, cex = 2.5, aes(shape = sci_name)) +
+  geom_smooth(method = "lm", se = TRUE, color = "black", linetype = 2) +
   theme_bw() +
-  scale_colour_manual(values=all_hosts, 
-                      name="Focal Species",
-                      breaks=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE"),
-                      labels=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE")) +
+  scale_color_manual(values=all_hosts, 
+                     name="Focal Species",
+                     breaks=c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", 
+                              "T. plicata", "T. heterophylla"),
+                     labels=c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", 
+                              "T. plicata", "T. heterophylla")) +
+  scale_shape_manual(
+    values = species_shapes, 
+    breaks = c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", "T. plicata", "T. heterophylla"), 
+    name = "Focal Species",  
+    labels=c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", "T. plicata", "T. heterophylla")) +
   labs(x = "Hetero-Mycorrhizal Crowding Index", y = expression("Mean RGR ("*yr^{-1}*")")) +
   theme(
     axis.text.x = element_text(size = 11, colour="black"),
@@ -1164,7 +1236,7 @@ con_het_plots
 
 # Save figure 
 ggsave("~/Dropbox/WSU/WFDP_Chapter_3_Project/Demography/Figures/con-het_neigh_RGR_plots.png", 
-       plot = con_het_plots, width = 7.5, height = 8, units = "in", dpi = 300)
+       plot = con_het_plots, width = 7.5, height = 8.5, units = "in", dpi = 300)
 
 
 # Same vs different mycorrhizal association plots 
@@ -1178,7 +1250,7 @@ same_diff_myco_plots
 
 # Save figure 
 ggsave("~/Dropbox/WSU/WFDP_Chapter_3_Project/Demography/Figures/myco_neigh_RGR_plots.png", 
-       plot = same_diff_myco_plots, width = 7.5, height = 8, units = "in", dpi = 300)
+       plot = same_diff_myco_plots, width = 7.5, height = 8.5, units = "in", dpi = 300)
 
 
 # Gather the plots for the supplement to visualize the effects of removing the THPL with the high outlier CI value 
