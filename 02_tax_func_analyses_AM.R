@@ -227,28 +227,43 @@ traits_diverging_REA <- traits_diverging_REA %>%
 
 # Diverging bar plot for trait representation in individual trees 
 
+# Add in species 
+# make dataframe of full species names 
+sci_name <- c("Alnus rubra", "Cornus nuttallii", "Taxus brevifolia", "Thuja plicata")
+
+Host_ID <- c("ALRU", "CONU", "TABR", "THPL")
+
+
+taxa <- data.frame(sci_name, Host_ID)
+
+# Merge to all of the files 
+traits_diverging_REA <- merge(traits_diverging_REA, taxa, by = "Host_ID")
+
+
+
 REA_diverging <- ggplot(traits_diverging_REA, aes(x = Tree_ID, y = CLR_Abund_scaled, fill = Trait)) +
   geom_bar(stat = "identity") +
-  facet_wrap(~ Host_ID, scales = "free_x", nrow = 2) +
+  facet_wrap(~ sci_name, scales = "free_x", nrow = 2) +
   scale_fill_manual(
     values = setNames(viridis(3, option = "D", direction = -1), REA_order)) +
   theme_minimal() +
   theme(panel.border = element_rect(color = "black", fill = NA, size = 1)) +
-  labs(
-    x = "",
+  guides(fill = guide_legend(nrow = 1, ncol = 3)) + 
+  labs(x = "",
     y = "Relative Representation of REA Functional Guilds",
     fill = "REA Functional Guild") +
   geom_hline(yintercept = 0, color = "red3", linewidth = 1) +
   theme(
     axis.text.x = element_text(angle = 90, hjust = 1, size = 0, colour="black"),
-    axis.text.y = element_text(size = 14, colour="black"),
-    axis.title.y = element_text(size = 14, colour="black"),
+    axis.text.y = element_text(size = 16, colour="black"),
+    axis.title.y = element_text(size = 16, colour="black"),
     legend.text = element_text(size = 14, colour="black"),
-    strip.text = element_text(size = 14, colour="black")) +
+    strip.text = element_text(size = 16, colour="black", face = "italic")) +
   theme(legend.title = element_text(colour="black", size=14, face="bold")) +
-  theme(legend.position = "bottom") 
+  theme(legend.position = "none") 
 
 REA_diverging
+
 
 ggsave("~/Dropbox/WSU/WFDP_Chapter_3_Project/Fungal_Communities/AM_traits_REA_plot.png", 
        plot = REA_diverging, width = 7, height = 8, units = "in", dpi = 300)
@@ -393,9 +408,22 @@ traits_diverging_CSR <- traits_diverging_CSR %>%
 
 # Diverging bar plot for trait representation in individual trees 
 
+# Add in species 
+# make dataframe of full species names 
+sci_name <- c("Alnus rubra", "Cornus nuttallii", "Taxus brevifolia", "Thuja plicata")
+
+Host_ID <- c("ALRU", "CONU", "TABR", "THPL")
+
+
+taxa <- data.frame(sci_name, Host_ID)
+
+# Merge to all of the files 
+traits_diverging_CSR <- merge(traits_diverging_CSR, taxa, by = "Host_ID")
+
+
 CSR_diverging <- ggplot(traits_diverging_CSR, aes(x = Tree_ID, y = CLR_Abund_scaled, fill = Trait)) +
   geom_bar(stat = "identity") +
-  facet_wrap(~ Host_ID, scales = "free_x", nrow = 2) +
+  facet_wrap(~ sci_name, scales = "free_x", nrow = 2) +
   scale_fill_manual(
     values = setNames(viridis(5, option = "C", direction = -1), CSR_order)) +
   theme_minimal() +
@@ -407,12 +435,12 @@ CSR_diverging <- ggplot(traits_diverging_CSR, aes(x = Tree_ID, y = CLR_Abund_sca
   geom_hline(yintercept = 0, color = "red3", linewidth = 1) +
   theme(
     axis.text.x = element_text(angle = 90, hjust = 1, size = 0, colour="black"),
-    axis.text.y = element_text(size = 14, colour="black"),
-    axis.title.y = element_text(size = 14, colour="black"),
+    axis.text.y = element_text(size = 16, colour="black"),
+    axis.title.y = element_text(size = 16, colour="black"),
     legend.text = element_text(size = 14, colour="black"),
-    strip.text = element_text(size = 14, colour="black")) +
+    strip.text = element_text(size = 16, colour="black", face = "italic")) +
   theme(legend.title = element_text(colour="black", size=14, face="bold")) +
-  theme(legend.position = "bottom") +
+  theme(legend.position = "none") +
   guides(fill=guide_legend(nrow=3,byrow=TRUE))
 
 CSR_diverging
@@ -559,9 +587,22 @@ traits_diverging_YAS <- traits_diverging_YAS %>%
 
 # Diverging bar plot for trait representation in individual trees 
 
+# Add in species 
+# make dataframe of full species names 
+sci_name <- c("Alnus rubra", "Cornus nuttallii", "Taxus brevifolia", "Thuja plicata")
+
+Host_ID <- c("ALRU", "CONU", "TABR", "THPL")
+
+
+taxa <- data.frame(sci_name, Host_ID)
+
+# Merge to all of the files 
+traits_diverging_YAS <- merge(traits_diverging_YAS, taxa, by = "Host_ID")
+
+
 YAS_diverging <- ggplot(traits_diverging_YAS, aes(x = Tree_ID, y = CLR_Abund_scaled, fill = Trait)) +
   geom_bar(stat = "identity") +
-  facet_wrap(~ Host_ID, scales = "free_x", nrow = 2) +
+  facet_wrap(~ sci_name, scales = "free_x", nrow = 2) +
   scale_fill_manual(
     values = setNames(viridis(4, option = "G", direction = -1), YAS_order)) +
   theme_minimal() +
@@ -573,12 +614,12 @@ YAS_diverging <- ggplot(traits_diverging_YAS, aes(x = Tree_ID, y = CLR_Abund_sca
   geom_hline(yintercept = 0, color = "red3", linewidth = 1) +
   theme(
     axis.text.x = element_text(angle = 90, hjust = 1, size = 0, colour="black"),
-    axis.text.y = element_text(size = 14, colour="black"),
-    axis.title.y = element_text(size = 14, colour="black"),
+    axis.text.y = element_text(size = 16, colour="black"),
+    axis.title.y = element_text(size = 16, colour="black"),
     legend.text = element_text(size = 14, colour="black"),
-    strip.text = element_text(size = 14, colour="black")) +
+    strip.text = element_text(size = 16, colour="black", face = "italic")) +
   theme(legend.title = element_text(colour="black", size=14, face="bold")) +
-  theme(legend.position = "bottom") +
+  theme(legend.position = "none") +
   guides(fill=guide_legend(nrow=2,byrow=TRUE))
 
 YAS_diverging
@@ -614,10 +655,10 @@ trait_REA_df_scaled <- trait_REA_df %>%
 # colinear (this is what is done automatically in linear regression and other models)
 
 trait_REA_df_scaled <- trait_REA_df_scaled %>%
-  select(-Ancestral)
+  dplyr::select(-Ancestral)
 
 # Check colinearity 
-pairs(trait_REA_df_scaled %>% select(everything()))
+pairs(trait_REA_df_scaled %>% dplyr::select(everything()))
 
 # Looks good, nothing is perfectly related 
 
@@ -655,10 +696,10 @@ trait_CSR_df_scaled <- trait_CSR_df_scaled %>%
 # Also drop the columns with the old name format 
 
 trait_CSR_df_scaled <- trait_CSR_df_scaled %>%
-  select(Competitive, `Stress Tolerant`, `Ruderal`, `Stress Tolerant-Ruderal`)
+  dplyr::select(Competitive, `Stress Tolerant`, `Ruderal`, `Stress Tolerant-Ruderal`)
 
 # Check colinearity 
-pairs(trait_CSR_df_scaled %>% select(everything()))
+pairs(trait_CSR_df_scaled %>% dplyr::select(everything()))
 
 # Looks good, nothing is perfectly related 
 
@@ -690,10 +731,10 @@ trait_YAS_df_scaled <- trait_YAS_df_scaled %>%
 # Also drop the columns with the old name format 
 
 trait_YAS_df_scaled <- trait_YAS_df_scaled %>%
-  select(`Growth Yield`, `Resource Acquisition`, `Stress Tolerance`)
+  dplyr::select(`Growth Yield`, `Resource Acquisition`, `Stress Tolerance`)
 
 # Check colinearity 
-pairs(trait_YAS_df_scaled %>% select(everything()))
+pairs(trait_YAS_df_scaled %>% dplyr::select(everything()))
 
 # Looks good, nothing is perfectly related 
 
@@ -773,35 +814,66 @@ new_loadings <- c("Ancestral (REA)", "Edaphophilic (REA)", "Rhizophilic (REA)", 
 rownames(loadings.am) <- new_loadings
 
 # set colors for hosts 
-                # ABAM      ABGR      ALRU        CONU     TABR        THPL       TSHE        
-all_hosts <- c("#FFD373", "#FD8021", "#E05400", "#0073CC","#003488", "#001D59", "#001524")
+# ALRU      CONU     TABR        THPL        
+AM_hosts <- c("#E05400", "#0073CC","#003488", "#001D59")
+
+
+# Define shapes for species 
+
+#ALRU, CONU, TABR, THPL 
+species_shapes <- c(17, 18, 7, 8)
+
+
+# Load in species info 
+# Add in species 
+# make dataframe of full species names 
+sci_name <- c("A. rubra", "C. nuttallii", "T. brevifolia", "T. plicata")
+
+Host_ID <- c("ALRU", "CONU", "TABR", "THPL")
+
+
+taxa <- data.frame(sci_name, Host_ID)
+
+
+scores.am <- merge(scores.am, taxa, by = "Host_ID")
+
 
 # Visualize
-PCA_plot_am <- ggplot(scores.am, aes(x = PC1, y = PC2, color = Host_ID)) +
-  geom_point(size = 3) +
+PCA_plot_am <- ggplot(scores.am, aes(x = PC1, y = PC2, colour = sci_name)) +
+  geom_point(size = 4, aes(shape = sci_name)) +
   geom_segment(data = loadings.am, aes(x = 0, y = 0, xend = PC1 * 10, yend = PC2 * 10),
                arrow = arrow(length = unit(0.2, "cm")), color = "black") + 
   geom_text_repel(data = loadings.am, aes(x = PC1 * 11, y = PC2 * 11, label = rownames(loadings.am)),
                   color = "black", size = 4, max.overlaps = 10) +
-  theme_minimal() +
-  scale_color_manual(values=all_hosts, name="Focal Species",
-                     breaks=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE"),
-                     labels=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE")) +
+  theme_minimal(base_size = 14) +
+  scale_colour_manual(values=AM_hosts, 
+                     name="Focal Species",
+                     breaks=c("A. rubra", "C. nuttallii", "T. brevifolia", "T. plicata"),
+                     labels=c("A. rubra", "C. nuttallii", "T. brevifolia", "T. plicata")) +
+  scale_shape_manual(
+    values = species_shapes, 
+    name="Focal Species",
+    breaks=c("A. rubra", "C. nuttallii", "T. brevifolia", "T. plicata"),
+    labels=c("A. rubra", "C. nuttallii", "T. brevifolia", "T. plicata")) +
   labs(title = "",
        x = paste0("PC1 (", round(pca_var_explained[1], 1), "%)"),
        y = paste0("PC2 (", round(pca_var_explained[2], 1), "%)"), 
        color = "Focal Species") +
   theme(legend.position = "right")  +
-  theme(legend.title = element_text(colour="black", size=12, face="bold")) +
-  theme(legend.text = element_text(colour="black", size = 11)) + 
+  theme(legend.title = element_text(colour="black", size=14, face="bold")) +
+  theme(legend.text = element_text(colour="black", size = 14, face = "italic")) + 
   theme(
-    axis.text.x = element_text(size = 11, colour="black"),
-    axis.text.y = element_text(size = 11, colour="black"),
-    axis.title.y = element_text(size = 12, colour="black"),
-    axis.title.x = element_text(size = 12, colour="black"), 
-    strip.text = element_text(size = 12, colour="black"))
+    axis.text.x = element_text(size = 14, colour="black"),
+    axis.text.y = element_text(size = 14, colour="black"),
+    axis.title.y = element_text(size = 14, colour="black"),
+    axis.title.x = element_text(size = 14, colour="black"))
 
 PCA_plot_am
+
+
+# Save figure 
+ggsave("~/Dropbox/WSU/WFDP_Chapter_3_Project/Fungal_Communities/AM_traits_biplot.png", 
+       plot = PCA_plot_am, width = 10, height = 8, units = "in", dpi = 300)
 
 
 # Get top 3 traits for PC1

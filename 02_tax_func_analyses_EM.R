@@ -239,9 +239,21 @@ traits_diverging_ET <- traits_diverging_ET %>%
 
 # Diverging bar plot for trait representation in individual trees 
 
+# make dataframe of full species names 
+sci_name <-c("Abies amabilis", "Abies grandis", "Alnus rubra", "Taxus brevifolia", "Tsuga heterophylla")
+
+Host_ID <- c("ABAM", "ABGR", "ALRU", "TABR", "TSHE")
+
+
+taxa <- data.frame(sci_name, Host_ID)
+
+# Merge to all of the files 
+traits_diverging_ET <- merge(traits_diverging_ET, taxa, by = "Host_ID")
+
+
 ET_diverging <- ggplot(traits_diverging_ET, aes(x = Tree_ID, y = CLR_Abund_scaled, fill = Trait_clean)) +
   geom_bar(stat = "identity") +
-  facet_wrap(~ Host_ID, scales = "free_x", nrow = 2) +
+  facet_wrap(~ sci_name, scales = "free_x", nrow = 2) +
   scale_fill_manual(
     values = setNames(viridis(14, option = "E", direction = -1), exploration_order)) +
   theme_minimal() +
@@ -253,18 +265,18 @@ ET_diverging <- ggplot(traits_diverging_ET, aes(x = Tree_ID, y = CLR_Abund_scale
   geom_hline(yintercept = 0, color = "red3", linewidth = 1) +
   theme(
     axis.text.x = element_text(angle = 90, hjust = 1, size = 0, colour="black"),
-    axis.text.y = element_text(size = 14, colour="black"),
-    axis.title.y = element_text(size = 14, colour="black"),
-    legend.text = element_text(size = 14, colour="black"),
-    strip.text = element_text(size = 14, colour="black")) +
-  theme(legend.title = element_text(colour="black", size=14, face="bold")) +
-  theme(legend.position = "bottom") +
+    axis.text.y = element_text(size = 16, colour="black"),
+    axis.title.y = element_text(size = 16, colour="black"),
+    legend.text = element_text(size = 16, colour="black"),
+    strip.text = element_text(size = 16, colour="black", face = "italic")) +
+  theme(legend.title = element_text(colour="black", size=16, face="bold")) +
+  theme(legend.position = "none") +
   guides(fill=guide_legend(nrow=5,byrow=TRUE))
 
 ET_diverging
 
 ggsave("~/Dropbox/WSU/WFDP_Chapter_3_Project/Fungal_Communities/EM_traits_ET_plot.png", 
-       plot = ET_diverging, width = 10, height = 11, units = "in", dpi = 300)
+       plot = ET_diverging, width = 8, height = 8, units = "in", dpi = 300)
 
 
 ## Done with visualization of exploration types 
@@ -292,11 +304,11 @@ trait_df_scaled <- trait_df %>%
 # colinear (this is what is done automatically in linear regression and other models)
 
 trait_df_scaled <- trait_df_scaled %>%
-  select(-ET_long)
+  dplyr::select(-ET_long)
 
 
 # Check colinearity 
-pairs(trait_df_scaled %>% select(starts_with("ET_")))
+pairs(trait_df_scaled %>%  dplyr::select(starts_with("ET_")))
 
 # Looks good, nothing is perfectly related 
 
@@ -367,36 +379,68 @@ new_loadings <- c("Contact", "Contact-Short", "Short", "Contact-Medium", "Contac
 
 rownames(loadings.emf) <- new_loadings
 
+
+# make dataframe of full species names 
+sci_name <-c("A. amabilis", "A. grandis", "A. rubra", "T. brevifolia", "T. heterophylla")
+
+Host_ID <- c("ABAM", "ABGR", "ALRU", "TABR", "TSHE")
+
+
+taxa <- data.frame(sci_name, Host_ID)
+
+# Merge to all of the files 
+scores.emf <- merge(scores.emf, taxa, by = "Host_ID")
+
+
 # set colors for hosts 
-# ABAM      ABGR      ALRU        CONU     TABR        THPL       TSHE        
-all_hosts <- c("#FFD373", "#FD8021", "#E05400", "#0073CC","#003488", "#001D59", "#001524")
+               # ABAM      ABGR      ALRU       TABR       TSHE        
+EM_hosts <- c("#FFD373", "#FD8021", "#E05400","#003488", "#001524")
+
+
+# Define shapes for species 
+
+            # ABAM, ABGR, ALRU, TABR, TSHE  
+species_shapes <- c(15, 16, 17, 7, 9)
+
 
 # Visualize
-PCA_plot_emf <- ggplot(scores.emf, aes(x = PC1, y = PC2, color = Host_ID)) +
-  geom_point(size = 3) +
+PCA_plot_emf <- ggplot(scores.emf, aes(x = PC1, y = PC2, color = sci_name)) +
+  geom_point(size = 4, aes(shape = sci_name)) +
   geom_segment(data = loadings.emf, aes(x = 0, y = 0, xend = PC1 * 10, yend = PC2 * 10),
                arrow = arrow(length = unit(0.2, "cm")), color = "black") + 
   geom_text_repel(data = loadings.emf, aes(x = PC1 * 11, y = PC2 * 11, label = rownames(loadings.emf)),
                   color = "black", size = 4, max.overlaps = 10) +
-  theme_minimal() +
-  scale_color_manual(values=all_hosts, name="Focal Species",
-                                       breaks=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE"),
-                                       labels=c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE")) +
+  theme_minimal(base_size = 14) +
+  scale_colour_manual(values=EM_hosts, 
+                      name="Focal Species",
+                      breaks=c("A. amabilis", "A. grandis", "A. rubra", "T. brevifolia", "T. heterophylla"),
+                      labels=c("A. amabilis", "A. grandis", "A. rubra", "T. brevifolia", "T. heterophylla")) +
+  scale_shape_manual(values=species_shapes, 
+                     name="Focal Species",
+                     breaks=c("A. amabilis", "A. grandis", "A. rubra", "T. brevifolia", "T. heterophylla"),
+                     labels=c("A. amabilis", "A. grandis", "A. rubra", "T. brevifolia", "T. heterophylla")) +
   labs(title = "",
        x = paste0("PC1 (", round(pca_var_explained[1], 1), "%)"),
        y = paste0("PC2 (", round(pca_var_explained[2], 1), "%)"), 
        color = "Focal Species") +
   theme(legend.position = "right")  +
-  theme(legend.title = element_text(colour="black", size=12, face="bold")) +
-  theme(legend.text = element_text(colour="black", size = 11)) + 
+  theme(legend.title = element_text(colour="black", size=14, face="bold")) +
+  theme(legend.text = element_text(colour="black", size = 14, face = "italic")) + 
   theme(
-    axis.text.x = element_text(size = 11, colour="black"),
-    axis.text.y = element_text(size = 11, colour="black"),
-    axis.title.y = element_text(size = 12, colour="black"),
-    axis.title.x = element_text(size = 12, colour="black"), 
-    strip.text = element_text(size = 12, colour="black"))
+    axis.text.x = element_text(size = 14, colour="black"),
+    axis.text.y = element_text(size = 14, colour="black"),
+    axis.title.y = element_text(size = 14, colour="black"),
+    axis.title.x = element_text(size = 14, colour="black"))
 
 PCA_plot_emf
+
+
+
+
+# Save figure 
+ggsave("~/Dropbox/WSU/WFDP_Chapter_3_Project/Fungal_Communities/EMF_traits_biplot.png", 
+       plot = PCA_plot_emf, width = 10, height = 8, units = "in", dpi = 300)
+
 
 
 # Get top 3 traits for PC1
