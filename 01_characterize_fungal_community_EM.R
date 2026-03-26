@@ -446,31 +446,46 @@ pca_var_explained <- pca_var / sum(pca_var) * 100  # Convert to percentage
 
 
 # set colors for hosts 
-                # ABAM      ABGR      ALRU       TABR        TSHE        
-EM_hosts <- c("#9b5fe0", "#16a4d8", "#60dbe8", "#efdf48", "#d64e12")
+                 # ABAM      ABGR      ALRU       TABR       TSHE        
+EM_hosts <- c("#FFD373", "#FD8021", "#E05400",,"#003488", "#001524")
 
+
+# Define shapes for species 
+
+            # ABAM, ABGR, ALRU, TABR, TSHE  
+species_shapes <- c(15, 16, 17, 7, 9)
+
+# make dataframe of full species names 
+sci_name <-c("A. amabilis", "A. grandis", "A. rubra", "T. brevifolia", "T. heterophylla")
+
+Host_ID <- c("ABAM", "ABGR", "ALRU", "TABR", "TSHE")
+
+
+taxa <- data.frame(sci_name, Host_ID)
+
+# Merge to all of the files 
+scores.pca_clr_EM <- merge(scores.pca_clr_AM, taxa, by = "Host_ID")
 
 # Plot the Results by host alone
-PCA_plot_host <- ggplot(scores.pca_clr_EM, aes(x = PC1, y = PC2, color = Host_ID)) +
+PCA_plot_host <- ggplot(scores.pca_clr_EM, aes(x = PC1, y = PC2, color = sci_name, shape = sci_name)) +
   geom_point(size = 3) +
-  stat_ellipse(aes(group = Host_ID), type = "norm", linewidth = 1, size = 1) +
-  theme_minimal(base_size = 11) +
+  stat_ellipse(aes(group = sci_name), type = "norm", linewidth = 1, size = 1) +
+  theme_minimal(base_size = 14) +
   scale_colour_manual(values=EM_hosts, 
                       name="Focal Tree Species",
-                      breaks=c("ABAM", "ABGR", "ALRU", "TABR", "TSHE"),
-                      labels=c("ABAM", "ABGR", "ALRU","TABR", "TSHE")) +
+                      breaks=c("A. amabilis", "A. grandis", "A. rubra", "T. brevifolia", "T. heterophylla"),
+                      labels=c("A. amabilis", "A. grandis", "A. rubra", "T. brevifolia", "T. heterophylla")) +
+  scale_shape_manual(values=species_shapes, 
+                      name="Focal Tree Species",
+                      breaks=c("A. amabilis", "A. grandis", "A. rubra", "T. brevifolia", "T. heterophylla"),
+                      labels=c("A. amabilis", "A. grandis", "A. rubra", "T. brevifolia", "T. heterophylla")) +
   labs(x = paste0("PC1 (", round(pca_var_explained[1], 1), "%)"),
        y = paste0("PC2 (", round(pca_var_explained[2], 1), "%)"), 
        color = "Focal Tree Species") +
-  theme(legend.title = element_text(colour="black", size=12, face="bold")) +
-  theme(legend.text = element_text(colour="black", size = 12)) +
-  theme(axis.text.x = element_text(size = 11),
-        axis.text.y = element_text(size = 11)) +
-  guides(
-    color = guide_legend(order = 1),
-    shape = guide_legend(order = 2)  
-  )
-
+  theme(legend.title = element_text(colour="black", size=14, face="bold")) +
+  theme(legend.text = element_text(colour="black", size = 14, face = "italic")) +
+  theme(axis.text.x = element_text(size = 14),
+        axis.text.y = element_text(size = 14))
 PCA_plot_host
 
 # Looks pretty wacky 

@@ -445,31 +445,52 @@ pca_var <- pca_clr_AM$sdev^2  # Eigenvalues (variance of each PC)
 pca_var_explained <- pca_var / sum(pca_var) * 100  # Convert to percentage
 
 
+
 # set colors for hosts 
                # ALRU      CONU     TABR        THPL        
-AM_hosts <- c("#60dbe8", "#8bd346","#efdf48", "#f9a52F")
+AM_hosts <- c("#E05400", "#0073CC","#003488", "#001D59")
+
+
+# Define shapes for species 
+
+                #ALRU, CONU, TABR, THPL 
+species_shapes <- c(17, 18, 7, 8)
+
+
+# make dataframe of full species names 
+sci_name <- c("A. rubra", "C. nuttallii", "T. brevifolia", "T. plicata")
+
+Host_ID <- c("ALRU", "CONU", "TABR", "THPL")
+
+
+taxa <- data.frame(sci_name, Host_ID)
+
+# Merge to all of the files 
+scores.pca_clr_AM <- merge(scores.pca_clr_AM, taxa, by = "Host_ID")
+
 
 
 # Plot the Results by host alone
-PCA_plot_host_AM <- ggplot(scores.pca_clr_AM, aes(x = PC1, y = PC2, color = Host_ID)) +
+PCA_plot_host_AM <- ggplot(scores.pca_clr_AM, aes(x = PC1, y = PC2, color = sci_name, shape = sci_name)) +
   geom_point(size = 3) +
-  stat_ellipse(aes(group = Host_ID), type = "norm", linewidth = 1, size = 1) +
-  theme_minimal(base_size = 11) +
-  scale_colour_manual(values=AM_hosts, 
-                      name="Focal Tree Species",
-                      breaks=c("ALRU", "CONU", "TABR", "THPL"),
-                      labels=c("ALRU", "CONU", "TABR", "THPL")) +
+  stat_ellipse(aes(group = sci_name), type = "norm", linewidth = 1, size = 1) +
+  theme_minimal(base_size = 14) +
+  scale_color_manual(values=AM_hosts, 
+                     name="Focal Species",
+                     breaks=c("A. rubra", "C. nuttallii", "T. brevifolia", "T. plicata"),
+                     labels=c("A. rubra", "C. nuttallii", "T. brevifolia", "T. plicata")) +
+  scale_shape_manual(
+    values = species_shapes, 
+    name="Focal Species",
+    breaks=c("A. rubra", "C. nuttallii", "T. brevifolia", "T. plicata"),
+    labels=c("A. rubra", "C. nuttallii", "T. brevifolia", "T. plicata")) +
   labs(x = paste0("PC1 (", round(pca_var_explained[1], 1), "%)"),
        y = paste0("PC2 (", round(pca_var_explained[2], 1), "%)"), 
        color = "Focal Tree Species") +
-  theme(legend.title = element_text(colour="black", size=12, face="bold")) +
-  theme(legend.text = element_text(colour="black", size = 12)) +
-  theme(axis.text.x = element_text(size = 11),
-        axis.text.y = element_text(size = 11)) +
-  guides(
-    color = guide_legend(order = 1),
-    shape = guide_legend(order = 2)  
-  )
+  theme(legend.title = element_text(colour="black", size=14, face="bold")) +
+  theme(legend.text = element_text(colour="black", size = 14, face = "italic")) +
+  theme(axis.text.x = element_text(size = 14),
+        axis.text.y = element_text(size = 14))
 
 PCA_plot_host_AM
 
