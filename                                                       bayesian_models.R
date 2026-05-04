@@ -37,7 +37,7 @@ library(forcats); packageVersion("forcats")
 
 # install.packages("cmdstanr", repos = c('https://stan-dev.r-universe.dev', getOption("repos")))
 
-cmdstanr::install_cmdstan(overwrite = TRUE)
+# cmdstanr::install_cmdstan(overwrite = TRUE)
 
 #################################################################################
 #                               Main workflow                                   #
@@ -95,9 +95,11 @@ diams <- dplyr::select(diams, Species, mean_RGR, WFDP_Code)
 
 # 2. PC1 and PC2 axis scores for both leaf and root traits for each focal tree
 
-leaf_PCA <- read.csv("./Trait_Data/PCA/PCA_scores_leaf_traits.csv")
+## EDIT: using updated values that do not have 13C
 
-root_PCA <- read.csv("./Trait_Data/PCA/PCA_scores_root_traits.csv")
+leaf_PCA <- read.csv("./Trait_Data/PCA/PCA_scores_leaf_traits_no13C.csv")
+
+root_PCA <- read.csv("./Trait_Data/PCA/PCA_scores_root_traits_no13C.csv")
 
 # Subset to just columns of interest 
 leaf_PCs <- dplyr::select(leaf_PCA, leaf_PC1 = PC1, leaf_PC2 = PC2, WFDP_Code)
@@ -359,7 +361,7 @@ plot(conditional_effects(mod_01, effects = "leaf_PC2"), points = TRUE)
 # Run the model 
 mod_02 <- brm(mean_RGR ~ root_PC1 + root_PC2 + (1| Species), 
               data = mod_df, family = student(),
-              prior = priors, backend = "cmdstanr", chains = 5, iter = 10000, warmup = 1000, adapt_delta = 0.85)
+              prior = priors, backend = "cmdstanr", chains = 5, iter = 10000, warmup = 1000, adapt_delta = 0.95)
 
 summary(mod_02)
 pp_check(mod_02)
@@ -395,7 +397,7 @@ plot(conditional_effects(mod_02, effects = "root_PC2"), points = TRUE)
 # Run the model 
 mod_03 <- brm(mean_RGR ~ leaf_PC1 + leaf_PC2 + root_PC1 + root_PC2 + (1| Species), 
               data = mod_df, family = student(),
-              prior = priors, backend = "cmdstanr", chains = 5, iter = 10000, warmup = 1000, adapt_delta = 0.9)
+              prior = priors, backend = "cmdstanr", chains = 5, iter = 10000, warmup = 1000, adapt_delta = 0.95)
 
 summary(mod_03)
 pp_check(mod_03)
@@ -408,7 +410,8 @@ mcmc_trace(mod_03)
 # Run the model 
 mod_04 <- brm(mean_RGR ~ AM_PC1 + EM_PC1 + (1| Species), 
               data = mod_df, family = student(),
-              prior = priors, backend = "cmdstanr", chains = 5, iter = 10000, warmup = 1000, adapt_delta = 0.95)
+              prior = priors, backend = "cmdstanr", save_pars = save_pars(all = TRUE), 
+              chains = 5, iter = 10000, warmup = 1000, adapt_delta = 0.975)
 
 summary(mod_04)
 pp_check(mod_04)
@@ -446,7 +449,7 @@ ggplot(mod_df, aes(Association, AM_PC1)) + geom_jitter()
 
 mod_06 <- brm(mean_RGR ~ same_myco_09_mean_neigh_DBH_std + diff_myco_09_num_neigh_std + (1| Species), 
               data = mod_df, family = student(),
-              prior = priors, backend = "cmdstanr", chains = 5, iter = 10000, warmup = 1000, adapt_delta = 0.85)
+              prior = priors, backend = "cmdstanr", chains = 5, iter = 10000, warmup = 1000, adapt_delta = 0.95)
 
 summary(mod_06)
 pp_check(mod_06)
@@ -507,6 +510,21 @@ pp_check(mod_09)
 mcmc_trace(mod_09)
 
 
+
+
+# MODEL 10 - Relationship of growth to the interactive effects of the three model terms that had significant 
+# effects on growth in the most comprehensive model 
+
+mod_10 <- brm(mean_RGR ~ leaf_PC1*diff_myco_09_num_neigh_std*can_open_10_09_std + (1| Species), 
+              data = mod_df, family = student(),
+              prior = priors, backend = "cmdstanr", save_pars = save_pars(all = TRUE), 
+              chains = 5, iter = 10000, warmup = 1000, adapt_delta = 0.85)
+
+summary(mod_10)
+pp_check(mod_10)
+mcmc_trace(mod_10)
+
+
 #################################################################################
 
 #######################
@@ -518,17 +536,23 @@ mcmc_trace(mod_09)
 loo_01 <- loo(mod_01)
 loo_02 <- loo(mod_02)
 loo_03 <- loo(mod_03)
-loo_04 <- loo(mod_04)
+loo_04 <- loo(mod_04, moment_match = TRUE)
 loo_05 <- loo(mod_05)
 loo_06 <- loo(mod_06) 
 loo_07 <- loo(mod_07) 
 loo_08 <- loo(mod_08)
 loo_09 <- loo(mod_09, moment_match = TRUE) # received message of 2 observations with pareto_k > 0.7, so ran 
 # moment match and recompiled the model. 
+loo_10 <- loo(mod_10, moment_match = TRUE, reloo = TRUE)
+
+# This requires having save_pars = save_pars(all = TRUE),  in the original model call 
 
 
+## Some remaining issues with the refitting of the model 10. Going forward just for exploration, but this model 
+# structure isn't working very well. 
 
-model_comp <- loo_compare(loo_01, loo_02, loo_03, loo_04, loo_05, loo_06, loo_07, loo_08, loo_09)
+
+model_comp <- loo_compare(loo_01, loo_02, loo_03, loo_04, loo_05, loo_06, loo_07, loo_08, loo_09, loo_10)
 print(model_comp)
 
 plot(model_comp)
@@ -539,11 +563,11 @@ comp_df <- as.data.frame(model_comp) %>%
 
 # create dataframe of model number and the model terms for matching 
 
-mod_num <- c("mod_01", "mod_02", "mod_03", "mod_04", "mod_05", "mod_06", "mod_07", "mod_08", "mod_09")
+mod_num <- c("mod_01", "mod_02", "mod_03", "mod_04", "mod_05", "mod_06", "mod_07", "mod_08", "mod_09", "mod_10")
 
 mod_terms <- c("Leaf Traits", "Root Traits", "Leaf + Root Traits", "Myco Traits", 
                    "Leaf + Root + Myco Traits", "Neighborhood", "Leaf + Root + Myco + Neigh", 
-                   "Canopy", "Leaf + Root + Myco + Neigh + Canopy")
+                   "Canopy", "Leaf + Root + Myco + Neigh + Canopy", "Leaf PC1 x Neigh x Canopy")
 
 mod_details <- data.frame(mod_num, mod_terms)
 
@@ -555,19 +579,21 @@ comp_df <- merge(mod_details, comp_df, by = "mod_num")
 
 # compute model weights, which show the probability each model is the best predictive model
 weights <- loo_model_weights(list(loo_01, loo_02, loo_03, loo_04, loo_05, loo_06, loo_07, loo_08, 
-                                  loo_09),method = "stacking")
+                                  loo_09, loo_10),method = "stacking")
 
 
 weight_df <- data.frame(model = c("Leaf Traits", "Root Traits", "Leaf + Root Traits", "Myco Traits", 
                                   "Leaf + Root + Myco Traits", "Neighborhood", "Leaf + Root + Myco + Neigh", 
-                                  "Canopy", "Leaf + Root + Myco + Neigh + Canopy"), weight = weights)
+                                  "Canopy", "Leaf + Root + Myco + Neigh + Canopy", "Leaf PC1 x Neigh x Canopy"), weight = weights)
 
 
 # Set order for plotting - putting them in the same order as the overall model performance 
 # values down below 
-new_mod_order <- c("Myco Traits", "Leaf Traits", "Leaf + Root Traits",
-                   "Leaf + Root + Myco Traits", "Root Traits", "Neighborhood", "Canopy",
-                   "Leaf + Root + Myco + Neigh", "Leaf + Root + Myco + Neigh + Canopy")
+
+## !! Not changing this to reflect Mod 10 differences, just putting it at the top right now !! 
+new_mod_order <- c("Leaf + Root + Myco Traits", "Leaf + Root Traits", "Root Traits", "Myco Traits", "Leaf Traits",
+                   "Leaf + Root + Myco + Neigh", "Neighborhood", "Canopy", "Leaf + Root + Myco + Neigh + Canopy", 
+                   "Leaf PC1 x Neigh x Canopy")
 
 weight_df$model <- factor(weight_df$model, levels = new_mod_order)
 
@@ -679,6 +705,12 @@ leaf_root_myco_neigh_canopy_draws <- mod_09 %>%
   mutate(model = "Leaf + Root + Myco Traits + Neigh + Canopy")
 
 
+leaf_neigh_canopy_interaction_draws <- mod_10 %>%
+  gather_draws(b_leaf_PC1, b_diff_myco_09_num_neigh_std, b_can_open_10_09_std) %>%
+  mutate(model = "Leaf PC1 x Neigh x Canopy")
+
+
+
 
 # combine all 
 draws_df <- bind_rows(
@@ -690,7 +722,8 @@ draws_df <- bind_rows(
   neigh_draws,
   leaf_root_myco_neigh_draws, 
   canopy_draws,
-  leaf_root_myco_neigh_canopy_draws)
+  leaf_root_myco_neigh_canopy_draws, 
+  leaf_neigh_canopy_interaction_draws)
 
 
 
@@ -727,7 +760,8 @@ p2 <- ggplot(draws_df,
     axis.title.x = element_text(size = 12, colour="black"), 
     strip.text = element_text(size = 12, colour="black")) +
   theme(legend.text = element_text(size = 12, colour="black"), 
-        legend.title = element_text(size = 12, face = "bold", colour="black"))
+        legend.title = element_text(size = 12, face = "bold", colour="black")) +
+  theme(legend.position = "bottom", legend.justification = "left")
 
 p2
 
@@ -735,9 +769,9 @@ p2
 # things very small 
 
 
-library(patchwork)
+# library(patchwork)
 
-p1 + p2 + plot_layout(ncol = 2)
+# p1 + p2 + plot_layout(ncol = 2)
 
 
 
@@ -766,10 +800,13 @@ coef_summary <- coef_summary %>%
 
 # set model colors
 
-                # Leaf      Root   Leaf + Root    Myco      Neigh       Canopy
-my_cols <- c( "darkgreen", "brown",  "gray60", "#0072C2", "purple3",  "#F5C710", "#E69F00",  "#D55E00",  "#CC79A7")
+                # Leaf      Root   Leaf + Root    Myco      Neigh       Canopy                                      #interaction
+my_cols <- c( "darkgreen", "brown",  "gray60", "#0072C2", "purple3",  "#F5C710", "#E69F00",  "#D55E00",  "#CC79A7", "navy")
 
 
+
+## Added in the tenth model for the interactions here. Would need to take it out just by removing the last color and the last 
+# items in the breaks and labels lists, along with it from the dataset generated up above. 
 
 
 # Create a forest plot 
@@ -782,10 +819,12 @@ p3 <- ggplot(coef_summary, aes(x = median, y = term, color = model, group = mode
                       name="Model",
                       breaks = c("Leaf Traits", "Root Traits", "Leaf + Root Traits", "Myco Traits", 
                                 "Neighborhood", "Canopy", "Leaf + Root + Myco Traits",
-                                "Leaf + Root + Myco Traits + Neigh", "Leaf + Root + Myco Traits + Neigh + Canopy"),
+                                "Leaf + Root + Myco Traits + Neigh", "Leaf + Root + Myco Traits + Neigh + Canopy", 
+                                "Leaf PC1 x Neigh x Canopy"),
                       labels = c("Leaf Traits", "Root Traits", "Leaf + Root Traits", "Myco Traits", 
                                  "Neighborhood", "Canopy", "Leaf + Root + Myco Traits",
-                                 "Leaf + Root + Myco Traits + Neigh", "Leaf + Root + Myco Traits + Neigh + Canopy")) +
+                                 "Leaf + Root + Myco Traits + Neigh", "Leaf + Root + Myco Traits + Neigh + Canopy", 
+                                 "Leaf PC1 x Neigh x Canopy")) +
   scale_shape_manual(values = c(19,1),
                      breaks = c("significant", "nonsignificant")) +              
   guides(linetype = "none", shape = "none") +      
@@ -807,7 +846,6 @@ p3 <- ggplot(coef_summary, aes(x = median, y = term, color = model, group = mode
 
 p3 
 
-# Looks nice but needs some aesthetic fine-tuning 
 
 
 
@@ -824,6 +862,12 @@ p3
 
 # Crosses the zero shows that it had a mix of positive and negative effects on growth 
 
+
+# Leaf traits became more important in the full model, likely because they relate to competition for light 
+# that is partially reflected by both the neighborhood and condition of the canopy. 
+
+
+# This visualization isn't really fully getting at the interaction effects either. 
 
 ############################################## --
 
