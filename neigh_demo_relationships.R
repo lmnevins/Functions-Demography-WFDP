@@ -217,8 +217,13 @@ species_shapes <- c(15, 16, 17, 18, 7, 8, 9)
 
 
 # make dataframe of full species names 
-sci_name <- c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", 
-          "T. plicata", "T. heterophylla")
+#sci_name <- c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", 
+#          "T. plicata", "T. heterophylla")
+
+
+sci_name <- c("Abies amabilis", "Abies grandis", "Alnus rubra", "Cornus nuttallii", "Taxus brevifolia", 
+                     "Thuja plicata", "Tsuga heterophylla")
+
 
 Species <- c("ABAM", "ABGR", "ALRU", "CONU", "TABR", "THPL", "TSHE")
 
@@ -1263,6 +1268,165 @@ outlier_plots
 # Save figure 
 ggsave("~/Dropbox/WSU/WFDP_Chapter_3_Project/Demography/Figures/outlier_neigh_RGR_plots.png", 
        plot = outlier_plots, width = 7, height = 6, units = "in", dpi = 300)
+
+
+
+
+
+
+# Generate significant plots 
+
+# Relationship between focal tree RGR and # heterospecific neighbors 
+RGR_num_het_neigh <- ggplot(het_growth_summary_09, aes(x = num_neighbors, y = mean_RGR, colour = sci_name)) +
+  geom_point(alpha = 1, cex = 2.5, aes(shape = sci_name)) +
+  geom_smooth(method = "lm", se = TRUE, color = "black", linetype = 1) +
+  theme_bw() +
+  scale_color_manual(values=all_hosts, 
+                     name="Focal Species",
+                     breaks=c("Abies amabilis", "Abies grandis", "Alnus rubra", "Cornus nuttallii", "Taxus brevifolia", 
+                              "Thuja plicata", "Tsuga heterophylla"),
+                     labels=c("Abies amabilis", "Abies grandis", "Alnus rubra", "Cornus nuttallii", "Taxus brevifolia", 
+                              "Thuja plicata", "Tsuga heterophylla")) +
+  scale_shape_manual(
+    values = species_shapes, 
+    breaks = c("Abies amabilis", "Abies grandis", "Alnus rubra", "Cornus nuttallii", "Taxus brevifolia", 
+               "Thuja plicata", "Tsuga heterophylla"), 
+    name = "Focal Species",  
+    labels=c("Abies amabilis", "Abies grandis", "Alnus rubra", "Cornus nuttallii", "Taxus brevifolia", 
+             "Thuja plicata", "Tsuga heterophylla")) +
+  labs(x = "Number of Heterospecific Neighbors", y = expression("Mean RGR ("*yr^{-1}*")")) +
+  theme(
+    axis.text.x = element_text(size = 11, colour="black"),
+    axis.text.y = element_text(size = 11, colour="black"),
+    axis.title.y = element_text(size = 12, colour="black"),
+    axis.title.x = element_text(size = 12, colour="black"), 
+    strip.text = element_text(size = 12, colour="black")) +
+  theme(legend.text = element_text(size = 11, colour="black", face = "italic"), 
+        legend.title = element_text(size = 12, face = "bold", colour="black")) +
+  theme(legend.position = "none")
+
+
+RGR_num_het_neigh
+
+
+
+
+# Relationship between focal tree RGR and mean heterospecific neighbor DBH 
+RGR_size_het_neigh <- ggplot(het_growth_summary_09, aes(x = mean_neighbor_DBH, y = mean_RGR, colour = sci_name)) +
+  geom_point(alpha = 1, cex = 2.5, aes(shape = sci_name)) +
+  geom_smooth(method = "lm", se = TRUE, color = "black", linetype = 1) +
+  theme_bw() +
+  scale_color_manual(values=all_hosts, 
+                     name="Focal Species",
+                     breaks=c("Abies amabilis", "Abies grandis", "Alnus rubra", "Cornus nuttallii", "Taxus brevifolia", 
+                              "Thuja plicata", "Tsuga heterophylla"),
+                     labels=c("Abies amabilis", "Abies grandis", "Alnus rubra", "Cornus nuttallii", "Taxus brevifolia", 
+                              "Thuja plicata", "Tsuga heterophylla")) +
+  scale_shape_manual(
+    values = species_shapes, 
+    breaks = c("Abies amabilis", "Abies grandis", "Alnus rubra", "Cornus nuttallii", "Taxus brevifolia", 
+               "Thuja plicata", "Tsuga heterophylla"), 
+    name = "Focal Species",  
+    labels=c("Abies amabilis", "Abies grandis", "Alnus rubra", "Cornus nuttallii", "Taxus brevifolia", 
+             "Thuja plicata", "Tsuga heterophylla")) +
+  labs(x = "Mean Heterospecific Neighbor DBH", y = expression("Mean RGR ("*yr^{-1}*")")) +
+  theme(
+    axis.text.x = element_text(size = 11, colour="black"),
+    axis.text.y = element_text(size = 11, colour="black"),
+    axis.title.y = element_text(size = 12, colour="black"),
+    axis.title.x = element_text(size = 12, colour="black"), 
+    strip.text = element_text(size = 12, colour="black")) +
+  theme(legend.text = element_text(size = 11, colour="black"), 
+        legend.title = element_text(size = 12, face = "bold", colour="black")) +
+  theme(legend.position = "none")
+
+
+RGR_size_het_neigh
+
+
+
+# Relationship between focal tree RGR and mean same mycorrhizal neighbor DBH 
+RGR_size_same_myco_neigh <- ggplot(same_myco_growth_summary_09, aes(x = mean_neighbor_DBH, y = mean_RGR, colour = sci_name)) +
+  geom_point(alpha = 1, cex = 2.5, aes(shape = sci_name)) +
+  geom_smooth(method = "lm", se = TRUE, color = "black", linetype = 1) +
+  theme_bw() +
+  scale_color_manual(values=all_hosts, 
+                     name="Focal Species",
+                     breaks=c("Abies amabilis", "Abies grandis", "Alnus rubra", "Cornus nuttallii", "Taxus brevifolia", 
+                              "Thuja plicata", "Tsuga heterophylla"),
+                     labels=c("Abies amabilis", "Abies grandis", "Alnus rubra", "Cornus nuttallii", "Taxus brevifolia", 
+                              "Thuja plicata", "Tsuga heterophylla")) +
+  scale_shape_manual(
+    values = species_shapes, 
+    breaks = c("Abies amabilis", "Abies grandis", "Alnus rubra", "Cornus nuttallii", "Taxus brevifolia", 
+               "Thuja plicata", "Tsuga heterophylla"), 
+    name = "Focal Species",  
+    labels=c("Abies amabilis", "Abies grandis", "Alnus rubra", "Cornus nuttallii", "Taxus brevifolia", 
+             "Thuja plicata", "Tsuga heterophylla")) +
+  labs(x = "Mean Con-Mycorrhizal Neighbor DBH", y = expression("Mean RGR ("*yr^{-1}*")")) +
+  theme(
+    axis.text.x = element_text(size = 11, colour="black"),
+    axis.text.y = element_text(size = 11, colour="black"),
+    axis.title.y = element_text(size = 12, colour="black"),
+    axis.title.x = element_text(size = 12, colour="black"), 
+    strip.text = element_text(size = 12, colour="black")) +
+  theme(legend.text = element_text(size = 11, colour="black"), 
+        legend.title = element_text(size = 12, face = "bold", colour="black")) +
+  theme(legend.position = "none")
+
+
+RGR_size_same_myco_neigh
+
+
+
+
+# Relationship between focal tree RGR and different mycorrhizal neighbors 
+RGR_num_diff_myco_neigh <- ggplot(diff_myco_growth_summary_09, aes(x = num_neighbors, y = mean_RGR, colour = sci_name)) +
+  geom_point(alpha = 1, cex = 2.5, aes(shape = sci_name)) +
+  geom_smooth(method = "lm", se = TRUE, color = "black", linetype = 1) +
+  theme_bw() +
+  scale_color_manual(values=all_hosts, 
+                     name="Focal Species",
+                     breaks=c("Abies amabilis", "Abies grandis", "Alnus rubra", "Cornus nuttallii", "Taxus brevifolia", 
+                              "Thuja plicata", "Tsuga heterophylla"),
+                     labels=c("Abies amabilis", "Abies grandis", "Alnus rubra", "Cornus nuttallii", "Taxus brevifolia", 
+                              "Thuja plicata", "Tsuga heterophylla")) +
+  scale_shape_manual(
+    values = species_shapes, 
+    breaks = c("Abies amabilis", "Abies grandis", "Alnus rubra", "Cornus nuttallii", "Taxus brevifolia", 
+               "Thuja plicata", "Tsuga heterophylla"), 
+    name = "Focal Species",  
+    labels=c("Abies amabilis", "Abies grandis", "Alnus rubra", "Cornus nuttallii", "Taxus brevifolia", 
+             "Thuja plicata", "Tsuga heterophylla")) +
+  labs(x = "Number of Hetero-Mycorrhizal Neighbors", y = expression("Mean RGR ("*yr^{-1}*")")) +
+  theme(
+    axis.text.x = element_text(size = 11, colour="black"),
+    axis.text.y = element_text(size = 11, colour="black"),
+    axis.title.y = element_text(size = 12, colour="black"),
+    axis.title.x = element_text(size = 12, colour="black"), 
+    strip.text = element_text(size = 12, colour="black")) +
+  theme(legend.text = element_text(size = 12, colour="black", face = "italic"), 
+        legend.title = element_text(size = 12, face = "bold", colour="black")) +
+  theme(legend.position = "right")
+
+
+RGR_num_diff_myco_neigh
+
+
+
+# Gather the neighborhood plots for significant relationships to growth 
+sig_neigh_plots <- plot_grid(RGR_num_het_neigh, RGR_num_diff_myco_neigh,
+                                  ncol = 2, nrow = , labels = c('A)', 'B)'))
+sig_neigh_plots
+
+
+# Save figure 
+ggsave("~/Dropbox/WSU/WFDP_Chapter_3_Project/Demography/Figures/sig_neigh_plots.png", 
+       plot = sig_neigh_plots, width = 7.5, height = 3.5, units = "in", dpi = 300)
+
+
+
+
 
 
 ## -- END -- ## 
