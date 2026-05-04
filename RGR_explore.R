@@ -229,9 +229,9 @@ spp_rgr <- ggplot(growth_env, aes(y = mean_RGR, x = full, fill = full)) +
   labs(x = "", y = expression("Mean Relative Growth Rate ("*yr^{-1}*")")) +
   theme(
     axis.text.x = element_text(size = 14, colour="black", face = "italic"),
-    axis.text.y = element_text(size = 14, colour="black"),
-    axis.title.y = element_text(size = 14, colour="black"),
-    axis.title.x = element_text(size = 14, colour="black")) +
+    axis.text.y = element_text(size = 16, colour="black"),
+    axis.title.y = element_text(size = 16, colour="black"),
+    axis.title.x = element_text(size = 16, colour="black")) +
   theme(legend.text = element_text(size = 14, colour="black"), 
         legend.title = element_text(size = 14, face = "bold", colour="black")) +
   theme(legend.position = "none")
