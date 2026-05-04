@@ -80,8 +80,10 @@ traits <- merge(leaf, root, by = 'code')
 # needle-leaf species 
 
 traits <- dplyr::select(traits, code, WFDP_Code = WFDP_Code.x, sub_plot = sub_plot.x, Host_ID = Host_ID.x, SLA_leaf, LDMC_leaf, LMA_leaf, 
-                 leaf_pct_N, leaf_pct_C, leaf_CN, leaf_15N, leaf_13C, specific_root_length, specific_root_area,
-                 root_dry_matter_cont, root_CN, root_15N, root_13C, avg_root_dia, root_pct_N, root_pct_C)
+                 leaf_pct_N, leaf_pct_C, leaf_CN, leaf_15N, specific_root_length, specific_root_area,
+                 root_dry_matter_cont, root_CN, root_15N, avg_root_dia, root_pct_N, root_pct_C)
+
+## UPDATE: removed C isotope traits 
 
 
 # make dataframe of full species names 
@@ -329,9 +331,12 @@ tuk_SRL
 # TSHE-THPL -0.09570000 -0.33987222  0.14847222 0.8906700
 
 
+## STOP: Carbon isotopes have been removed now, so this is outdated. Can add back in at the top 
+# if needed to rerun this 
+
 
 # Take a closer look at just the isotopic results 
-isotopes <- dplyr::select(traits, sci_name, leaf_13C, leaf_15N, root_13C, root_15N)
+isotopes <- dplyr::select(traits, sci_name, leaf_15N, root_15N)
 
 # Merge with env to get associations 
 isotopes$Association <- env$Association
@@ -342,9 +347,9 @@ isotopes <- pivot_longer(isotopes, cols = -c(sci_name, Association), names_to = 
 
 # Create a dataframe to label the isotopes better for faceting 
 
-trait <- c("leaf_13C", "leaf_15N", "root_13C", "root_15N")
+trait <- c("leaf_15N", "root_15N")
 
-label <- c("Leaf d13C", "Leaf d15N", "Root d13C", "Root d15N")
+label <- c("leaf_15N", "root_15N")
 
 isotope_labels <- data.frame(trait, label)
 
@@ -605,7 +610,7 @@ tuk_15N_root2 <- TukeyHSD(aov_15N_root2)
 tuk_15N_root2
 
 
-# Df Sum Sq Mean Sq F value Pr(>F)
+#              Df Sum Sq Mean Sq F value Pr(>F)
 # Association  2   0.74   0.370   0.184  0.833
 # Residuals   57 114.78   2.014   
 # 
@@ -617,6 +622,43 @@ tuk_15N_root2
 # EM-DUAL -0.04640212 -1.171059 1.0782546 0.9945805
 
 # No differences between association 
+
+
+
+
+## Get summary table of myco group-level means and standard error 
+leaf_15N <- dplyr::select(traits, sci_name, leaf_15N)
+
+root_15N <- dplyr::select(traits, sci_name, root_15N)
+
+# Merge with env to get associations 
+leaf_15N$Association <- env$Association
+
+# Merge with env to get associations 
+root_15N$Association <- env$Association
+
+
+leaf_15N_summary <- leaf_15N %>%
+  group_by(Association) %>%
+  summarise(across(
+    where(is.numeric), 
+    list(mean = ~mean(.x, na.rm = TRUE), se = ~se(.x)),
+    .names = "{.col}_{.fn}"))
+
+
+root_15N_summary <- root_15N %>%
+  group_by(Association) %>%
+  summarise(across(
+    where(is.numeric), 
+    list(mean = ~mean(.x, na.rm = TRUE), se = ~se(.x)),
+    .names = "{.col}_{.fn}"))
+
+
+
+
+
+
+
 
 
 
@@ -906,20 +948,20 @@ long_traits_tree_sc <- pivot_longer(long_traits_tree_sc, cols = -Host_ID, names_
 # "traits" data has info columns in the first four positions, so need to exclude those 
 
 #All Traits and individual tree positions 
-alltraits.pca = prcomp(traits[4:20], center = T, scale = T)
+alltraits.pca = prcomp(traits[5:19], center = T, scale = T)
 
 sd.alltraits = alltraits.pca$sdev
 loadings.alltraits = alltraits.pca$rotation
-trait.names.alltraits = colnames(traits[4:20])
+trait.names.alltraits = colnames(traits[5:19])
 scores.alltraits = as.data.frame(alltraits.pca$x)
 scores.alltraits$WFDP_Code = traits$WFDP_Code
 summary(alltraits.pca)
 
 # Save loadings for all traits
-write.csv(loadings.alltraits, "./PCA/PCA_loadings_alltraits_tree.csv", row.names = TRUE)
+write.csv(loadings.alltraits, "./PCA/PCA_loadings_alltraits_no13C_tree.csv", row.names = TRUE)
 
 #Save species scores
-write.csv(scores.alltraits, "./PCA/PCA_scores_alltraits_tree.csv")
+write.csv(scores.alltraits, "./PCA/PCA_scores_alltraits_no13C_tree.csv")
 
 
 # PCA scores are 'scores.alltraits' with column for Host_ID
@@ -939,18 +981,18 @@ scores.alltraits <- merge(scores.alltraits, taxa, by = "Host_ID")
 
 # Change loadings names to something cleaner 
 new_loadings <- c("SLA", "LDMC", "LMA", "Leaf_PctN", "Leaf_PctC", "Leaf_CN", "Leaf_d15N", 
-                  "Leaf_d13C", "SRL", "SRA", "RDMC", "Root_CN", 
-                  "Root_d15N", "Root_d13C", "RD", "Root_PctN", "Root_PctC")
+                  "SRL", "SRA", "RDMC", "Root_CN", 
+                  "Root_d15N", "RD", "Root_PctN", "Root_PctC")
 rownames(loadings.alltraits) <- new_loadings
 
 PCA_plot <- ggplot(scores.alltraits, aes(x = PC1, y = PC2, color = Association)) +
-  geom_point(size = 3, aes(shape = sci_name)) +
+  geom_point(size = 3.5, aes(shape = sci_name)) +
   geom_segment(data = loadings.alltraits, aes(x = 0, y = 0, xend = PC1 * 10, yend = PC2 * 10),
                arrow = arrow(length = unit(0.2, "cm")), color = "black") + 
   geom_text_repel(data = loadings.alltraits, aes(x = PC1 * 11, y = PC2 * 11, label = rownames(loadings.alltraits)),
                   color = "black", size = 5, max.overlaps = 10) +
   theme_minimal() +
-  scale_color_manual(values = c("AM" = "#dc267f", "DUAL" = "#648fff", "EM" = "#ffb000"), name = "Mycorrhizal\nAssociation") + 
+  scale_color_manual(values = c("AM" = "#dc267f", "DUAL" = "#648fff", "ECM" = "#ffb000"), name = "Mycorrhizal\nAssociation") + 
   scale_shape_manual(
     values = species_shapes, 
     breaks = c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", "T. plicata", "T. heterophylla"), 
@@ -1017,7 +1059,7 @@ top_PC1 <- loadings.alltraits[order(abs(loadings.alltraits$PC1), decreasing = TR
 top_PC2 <- loadings.alltraits[order(abs(loadings.alltraits$PC2), decreasing = TRUE), ][1:4, ]
 
 
-# PC1 is showing a spread of Leaf_PctN, Leaf_CN, SLA, and LDMC. This reflects conservative vs 
+# PC1 is showing a spread of Leaf_PctN, Leaf_CN, SLA, and LMA. This reflects conservative vs 
 # acquisitive strategies, with more conservative needle-leaf species with more negative values, 
 # and more acquisitive broadleaf species with more positive values. 
 
@@ -1034,10 +1076,10 @@ top_PC2 <- loadings.alltraits[order(abs(loadings.alltraits$PC2), decreasing = TR
 # related to the traits of the host tree 
 
 # Grab PC1 and PC2 for each tree 
-alltrees_PCs <- dplyr::select(scores.alltraits, PC1, PC2, WFDP_Code, Host_ID)
+alltrees_PCs <- dplyr::select(scores.alltraits, PC1, PC2, WFDP_Code, Host_ID, sci_name)
 
 # Save this file for later 
-write.csv(alltrees_PCs, "~/Dropbox/WSU/WFDP_Chapter_3_Project/Trait_Data/PCA/tree_PC_scores.csv")
+write.csv(alltrees_PCs, "~/Dropbox/WSU/WFDP_Chapter_3_Project/Trait_Data/PCA/tree_PC_no13C__scores.csv")
 
 
 ################################### -- 
@@ -1055,12 +1097,12 @@ env <- dplyr::select(env, WFDP_Code, Association)
 
 # Subset to traits excluding petiole 
 leaf_sub <- dplyr::select(leaf, code, WFDP_Code, sub_plot, Host_ID, SLA_leaf, LDMC_leaf, LMA_leaf, 
-                   leaf_pct_N, leaf_pct_C, leaf_CN, leaf_15N, leaf_13C)
+                   leaf_pct_N, leaf_pct_C, leaf_CN, leaf_15N)
 
 # Then roots: 
 root_sub <- dplyr::select(root, code, WFDP_Code, sub_plot, Host_ID, specific_root_length, 
                    specific_root_area, root_dry_matter_cont, root_CN, root_15N, 
-                   root_13C, avg_root_dia, root_pct_N, root_pct_C)
+                   avg_root_dia, root_pct_N, root_pct_C)
 
 
 ################################### -- 
@@ -1068,21 +1110,21 @@ root_sub <- dplyr::select(root, code, WFDP_Code, sub_plot, Host_ID, specific_roo
 # PCAs
 
 ## Leaves
-leaf.pca = prcomp(leaf_sub[5:12], center = T, scale = T)
+leaf.pca = prcomp(leaf_sub[5:11], center = T, scale = T)
 
 sd.leaf = leaf.pca$sdev
 loadings.leaf = leaf.pca$rotation
-trait.names.leaf = colnames(leaf_sub[5:12])
+trait.names.leaf = colnames(leaf_sub[5:11])
 scores.leaf = as.data.frame(leaf.pca$x)
 scores.leaf$WFDP_Code = leaf_sub$WFDP_Code
 scores.leaf$Host_ID = leaf_sub$Host_ID
 summary(leaf.pca)
 
 # Save loadings for leaf traits
-write.csv(loadings.leaf, "./PCA/PCA_loadings_leaf_traits.csv", row.names = TRUE)
+write.csv(loadings.leaf, "./PCA/PCA_loadings_leaf_traits_no13C.csv", row.names = TRUE)
 
 #Save species scores
-write.csv(scores.leaf, "./PCA/PCA_scores_leaf_traits.csv")
+write.csv(scores.leaf, "./PCA/PCA_scores_leaf_traits_no13C.csv")
 
 
 # PCA scores are 'scores.leaf' with column for Host_ID
@@ -1097,7 +1139,7 @@ pca_var_explained <- pca_var / sum(pca_var) * 100  # Convert to percentage
 scores.leaf <- merge(scores.leaf, env, by = "WFDP_Code")
 
 # Change loadings names to something cleaner 
-new_loadings <- c("SLA", "LDMC", "LMA", "PctN", "PctC", "C:N", "d15N", "d13C")
+new_loadings <- c("SLA", "LDMC", "LMA", "PctN", "PctC", "C:N", "d15N")
 rownames(loadings.leaf) <- new_loadings
 
 
@@ -1148,26 +1190,22 @@ top_PC2_leaf <- loadings.leaf[order(abs(loadings.leaf$PC2), decreasing = TRUE), 
 # PC1 is being driven by variation in SLA, C:N ratio, and LMA, which matches what 
 # would be expected for broad leaf vs needle-leaf species 
 
-# PC2 is being driven by the d13C, d15N, and leaf C content. 
+# PC2 is being driven by the leaf C content, d15N, and N content.  
 
-## Together the axes explain 83% of the variation 
+## Together the axes explain 87.4% of the variation 
 
 ### Calculate average PC1 score for each species and plot, compare statistically 
 
-PC1_leaf <- dplyr::select(scores.leaf, PC1, WFDP_Code, Host_ID)
+PC1_leaf <- dplyr::select(scores.leaf, PC1, WFDP_Code, Host_ID, sci_name)
 
 PC1_leaf_summary <- PC1_leaf %>%
-  group_by(Host_ID) %>%
+  group_by(sci_name) %>%
   summarise(
     mean_PC1 = mean(PC1, na.rm = TRUE),
     sd_PC1   = sd(PC1, na.rm = TRUE),
     n        = n(),
     se_PC1   = sd_PC1 / sqrt(n)
   )
-
-# Add in mycorrhizal associations 
-
-PC1_leaf_summary$Association <- c("ECM", "ECM", "DUAL", "AM", "DUAL", "AM", "ECM")
 
 
 # Test for significant differences between species 
@@ -1180,40 +1218,53 @@ tuk_PC1_leaf
 # Significant differences between species
 
 # 
-# Df Sum Sq Mean Sq F value Pr(>F)    
-# Host_ID      6 278.23   46.37   73.22 <2e-16 ***
+#         Df Sum Sq Mean Sq F value Pr(>F)    
+#    Host_ID      6 278.05   46.34   73.16 <2e-16 ***
 #   Residuals   53  33.57    0.63                   
 # ---
 #   Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
 
 
-# diff        lwr        upr     p adj
-# ABGR-ABAM  0.16166915 -1.0958287  1.4191670 0.9996811
-# ALRU-ABAM  5.68781200  4.3540341  7.0215898 0.0000000
-# CONU-ABAM  5.58953827  4.5005132  6.6785633 0.0000000
-# TABR-ABAM  2.11737052  0.9985036  3.2362374 0.0000076
-# THPL-ABAM  0.70377152 -0.3852535  1.7927966 0.4389146
-# TSHE-ABAM  1.31822662  0.2292016  2.4072517 0.0084988
-# ALRU-ABGR  5.52614285  4.0515960  7.0006897 0.0000000
-# CONU-ABGR  5.42786911  4.1703713  6.6853669 0.0000000
-# TABR-ABGR  1.95570137  0.6722730  3.2391297 0.0004008
-# THPL-ABGR  0.54210237 -0.7153955  1.7996002 0.8390672
-# TSHE-ABGR  1.15655747 -0.1009403  2.4140553 0.0905886
-# CONU-ALRU -0.09827373 -1.4320516  1.2355041 0.9999878
-# TABR-ALRU -3.57044148 -4.9286944 -2.2121886 0.0000000
-# THPL-ALRU -4.98404048 -6.3178183 -3.6502626 0.0000000
-# TSHE-ALRU -4.36958538 -5.7033632 -3.0358075 0.0000000
-# TABR-CONU -3.47216775 -4.5910346 -2.3533009 0.0000000
-# THPL-CONU -4.88576675 -5.9747918 -3.7967417 0.0000000
-# TSHE-CONU -4.27131164 -5.3603367 -3.1822866 0.0000000
-# THPL-TABR -1.41359900 -2.5324659 -0.2947321 0.0052253
-# TSHE-TABR -0.79914390 -1.9180108  0.3197230 0.3188954
-# TSHE-THPL  0.61445510 -0.4745700  1.7034802 0.6002402
+
+# diff         lwr        upr     p adj
+# ABGR-ABAM  0.1662578 -1.09318295  1.4256985 0.9996285
+# ALRU-ABAM  5.7050870  4.36924837  7.0409256 0.0000000
+# CONU-ABAM  5.6015496  4.51084195  6.6922573 0.0000000
+# TABR-ABAM  2.1807431  1.06014752  3.3013387 0.0000042
+# THPL-ABAM  0.7583286 -0.33237910  1.8490362 0.3504788
+# TSHE-ABAM  1.3339967  0.24328905  2.4247044 0.0075804
+# ALRU-ABGR  5.5388292  4.06200406  7.0156544 0.0000000
+# CONU-ABGR  5.4352918  4.17585113  6.6947326 0.0000000
+# TABR-ABGR  2.0144853  0.72907405  3.2998966 0.0002554
+# THPL-ABGR  0.5920708 -0.66736993  1.8515115 0.7774055
+# TSHE-ABGR  1.1677389 -0.09170177  2.4271797 0.0859092
+# CONU-ALRU -0.1035374 -1.43937597  1.2323012 0.9999836
+# TABR-ALRU -3.5243439 -4.88469531 -2.1639924 0.0000000
+# THPL-ALRU -4.9467584 -6.28259702 -3.6109198 0.0000000
+# TSHE-ALRU -4.3710903 -5.70692887 -3.0352517 0.0000000
+# TABR-CONU -3.4208065 -4.54140209 -2.3002109 0.0000000
+# THPL-CONU -4.8432211 -5.93392871 -3.7525134 0.0000000
+# TSHE-CONU -4.2675529 -5.35826056 -3.1768453 0.0000000
+# THPL-TABR -1.4224146 -2.54301014 -0.3018190 0.0049446
+# TSHE-TABR -0.8467464 -1.96734199  0.2738492 0.2560444
+# TSHE-THPL  0.5756682 -0.51503950  1.6663758 0.6719600
+
+
+## Removing the 13C did not change any of the significant differences between species. 
 
 
 
+# Put species in order for plotting 
+spp_order <- c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", 
+               "T. plicata", "T. heterophylla")
 
 
+# Convert the column to a factor with the specified levels
+PC1_leaf_summary$sci_name <- factor(PC1_leaf_summary$sci_name, levels = spp_order)
+
+
+# Add in mycorrhizal associations 
+PC1_leaf_summary$Association <- c("ECM", "ECM", "DUAL", "AM", "DUAL", "ECM", "AM")
 
 
 # Visualize 
@@ -1238,10 +1289,10 @@ PC1_leaf_plot
 
 ### Calculate average PC2 score for each species and plot, compare statistically 
 
-PC2_leaf <- dplyr::select(scores.leaf, PC2, WFDP_Code, Host_ID)
+PC2_leaf <- dplyr::select(scores.leaf, PC2, WFDP_Code, sci_name)
 
 PC2_leaf_summary <- PC2_leaf %>%
-  group_by(Host_ID) %>%
+  group_by(sci_name) %>%
   summarise(
     mean_PC2 = mean(PC2, na.rm = TRUE),
     sd_PC2   = sd(PC2, na.rm = TRUE),
@@ -1249,13 +1300,10 @@ PC2_leaf_summary <- PC2_leaf %>%
     se_PC2   = sd_PC2 / sqrt(n)
   )
 
-# Add in mycorrhizal associations 
-
-PC2_leaf_summary$Association <- c("ECM", "ECM", "DUAL", "AM", "DUAL", "AM", "ECM")
 
 
 # Test for significant differences between species 
-aov_PC2_leaf <- aov(PC2 ~ Host_ID, data = PC2_leaf)
+aov_PC2_leaf <- aov(PC2 ~ sci_name, data = PC2_leaf)
 summary(aov_PC2_leaf)
 
 tuk_PC2_leaf <- TukeyHSD(aov_PC2_leaf)
@@ -1264,35 +1312,52 @@ tuk_PC2_leaf
 # Significant differences between species
 # 
 
-# Df Sum Sq Mean Sq F value   Pr(>F)    
-# Host_ID      6  60.25  10.042   26.97 1.78e-14 ***
-#   Residuals   53  19.74   0.372                     
+#                Df Sum Sq Mean Sq F value   Pr(>F)    
+#     sci_name     6  37.82   6.303   29.39 3.27e-15 ***
+#   Residuals   53  11.37   0.214                     
 # ---
 #   Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
 
 
-# diff         lwr        upr     p adj
-# ABGR-ABAM  0.10842076 -0.8575181  1.0743596 0.9998550
-# ALRU-ABAM -0.83219454 -1.8567274  0.1923383 0.1841661
-# CONU-ABAM  0.09165061 -0.7448770  0.9281782 0.9998741
-# TABR-ABAM -2.64568851 -3.5051389 -1.7862381 0.0000000
-# THPL-ABAM -1.52220562 -2.3587332 -0.6856781 0.0000170
-# TSHE-ABAM -0.05163324 -0.8881608  0.7848943 0.9999957
-# ALRU-ABGR -0.94061530 -2.0732790  0.1920484 0.1645681
-# CONU-ABGR -0.01677016 -0.9827090  0.9491687 1.0000000
-# TABR-ABGR -2.75410927 -3.7399665 -1.7682521 0.0000000
-# THPL-ABGR -1.63062639 -2.5965652 -0.6646876 0.0000709
-# TSHE-ABGR -0.16005401 -1.1259928  0.8058848 0.9986397
-# CONU-ALRU  0.92384514 -0.1006877  1.9483780 0.1027620
-# TABR-ALRU -1.81349397 -2.8568271 -0.7701608 0.0000413
-# THPL-ALRU -0.69001109 -1.7145439  0.3345218 0.3886374
-# TSHE-ALRU  0.78056129 -0.2439715  1.8050941 0.2473032
-# TABR-CONU -2.73733912 -3.5967895 -1.8778887 0.0000000
-# THPL-CONU -1.61385623 -2.4503838 -0.7773287 0.0000051
-# TSHE-CONU -0.14328385 -0.9798114  0.6932437 0.9983606
-# THPL-TABR  1.12348289  0.2640325  1.9829333 0.0034590
-# TSHE-TABR  2.59405527  1.7346049  3.4535056 0.0000000
-# TSHE-THPL  1.47057238  0.6340448  2.3070999 0.0000333
+# diff         lwr         upr     p adj
+# A. grandis-A. amabilis         0.4700106 -0.26278680  1.20280803 0.4481112
+# A. rubra-A. amabilis          -0.6265695 -1.40381858  0.15067949 0.1911490
+# C. nuttallii-A. amabilis       1.0178844  0.38326321  1.65250557 0.0001737 ***
+# T. brevifolia-A. amabilis     -1.4398115 -2.09182281 -0.78780025 0.0000002 *** 
+# T. heterophylla-A. amabilis    0.7673514  0.13273027  1.40197262 0.0086005 ***
+# T. plicata-A. amabilis         0.1615578 -0.47306341  0.79617895 0.9859313
+# A. rubra-A. grandis           -1.0965802 -1.95586130 -0.23729903 0.0046387 ***
+# C. nuttallii-A. grandis        0.5478738 -0.18492364  1.28067119 0.2674907
+# T. brevifolia-A. grandis      -1.9098221 -2.65773038 -1.16191392 0.0000000 ***
+# T. heterophylla-A. grandis     0.2973408 -0.43545659  1.03013824 0.8737177
+# T. plicata-A. grandis         -0.3084528 -1.04125026  0.42434457 0.8535222
+# C. nuttallii-A. rubra          1.6444539  0.86720490  2.42170297 0.0000006 ***
+# T. brevifolia-A. rubra        -0.8132420 -1.60475366 -0.02173032 0.0403433 *
+# T. heterophylla-A. rubra       1.3939210  0.61667196  2.17117002 0.0000226 ***
+# T. plicata-A. rubra            0.7881273  0.01087828  1.56537634 0.0448494 *
+# T. brevifolia-C. nuttallii    -2.4576959 -3.10970720 -1.80568464 0.0000000 ***
+# T. heterophylla-C. nuttallii  -0.2505329 -0.88515412  0.38408823 0.8873040 
+# T. plicata-C. nuttallii       -0.8563266 -1.49094780 -0.22170544 0.0023067 **
+# T. heterophylla-T. brevifolia  2.2071630  1.55515170  2.85917426 0.0000000 ***
+# T. plicata-T. brevifolia       1.6013693  0.94935802  2.25338058 0.0000000 ***
+# T. plicata-T. heterophylla    -0.6057937 -1.24041485  0.02882750 0.0704307
+
+
+## UPDATE: Lots of new differences between species 
+
+
+# Put species in order for plotting 
+spp_order <- c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", 
+               "T. plicata", "T. heterophylla")
+
+
+# Convert the column to a factor with the specified levels
+PC2_leaf_summary$sci_name <- factor(PC2_leaf_summary$sci_name, levels = spp_order)
+
+
+# Add in mycorrhizal associations 
+PC2_leaf_summary$Association <- c("ECM", "ECM", "DUAL", "AM", "DUAL", "ECM", "AM")
+
 
 # Visualize 
 PC2_leaf_plot <- ggplot(PC2_leaf_summary, aes(x = sci_name, y = mean_PC2, fill = Association)) +
@@ -1317,21 +1382,21 @@ PC2_leaf_plot
 ############### -- 
 
 ## Roots
-root.pca = prcomp(root_sub[5:13], center = T, scale = T)
+root.pca = prcomp(root_sub[5:12], center = T, scale = T)
 
 sd.root = root.pca$sdev
 loadings.root = root.pca$rotation
-trait.names.root = colnames(root_sub[5:13])
+trait.names.root = colnames(root_sub[5:12])
 scores.root = as.data.frame(root.pca$x)
 scores.root$WFDP_Code = root_sub$WFDP_Code
 scores.root$Host_ID = root_sub$Host_ID
 summary(root.pca)
 
 # Save loadings for root traits
-write.csv(loadings.root, "./PCA/PCA_loadings_root_traits.csv", row.names = TRUE)
+write.csv(loadings.root, "./PCA/PCA_loadings_root_traits_no13C.csv", row.names = TRUE)
 
 #Save species scores
-write.csv(scores.root, "./PCA/PCA_scores_root_traits.csv")
+write.csv(scores.root, "./PCA/PCA_scores_root_traits_no13C.csv")
 
 
 # PCA scores are 'scores.root' with column for Host_ID
@@ -1354,7 +1419,7 @@ scores.root$Host_ID = root_sub$Host_ID
 loadings.root <- as.data.frame(root.pca$rotation)
 
 # Change loadings names to something cleaner 
-new_loadings_root <- c("SRL", "SRA", "RDMC", "C:N", "d15N", "d13C", "RD", "PctN", "PctC")
+new_loadings_root <- c("SRL", "SRA", "RDMC", "C:N", "d15N", "RD", "PctN", "PctC")
 rownames(loadings.root) <- new_loadings_root
 
 #Merge in mycorrhizal association for plotting 
@@ -1410,26 +1475,23 @@ top_PC2_root <- loadings.root[order(abs(loadings.root$PC2), decreasing = TRUE), 
 
 # PC1 is being driven by variation in Specific root area, specific root length, and root N content. 
 
-# PC2 is being driven by the d13C, root C content, and d15N.  
+# PC2 is being driven by root C content, d15N, and root diameter. 
 
-## Together the axes explain 63.7% of the variation 
+## Together the axes explain 70.9% of the variation 
 
 
 ### Calculate average PC1 score for each species and plot, compare statistically 
 
-PC1_root <- dplyr::select(scores.root, PC1, WFDP_Code, Host_ID)
+PC1_root <- dplyr::select(scores.root, PC1, WFDP_Code, Host_ID, sci_name)
 
 PC1_root_summary <- PC1_root %>%
-  group_by(Host_ID) %>%
+  group_by(sci_name) %>%
   summarise(
     mean_PC1 = mean(PC1, na.rm = TRUE),
     sd_PC1   = sd(PC1, na.rm = TRUE),
     n        = n(),
     se_PC1   = sd_PC1 / sqrt(n)
   )
-
-# Add in mycorrhizal associations 
-PC1_root_summary$Association <- c("ECM", "ECM", "DUAL", "AM", "DUAL", "AM", "ECM")
 
 
 # Test for significant differences between species 
@@ -1441,34 +1503,52 @@ tuk_PC1_root
 
 
 # Df Sum Sq Mean Sq F value  Pr(>F)   
-# Host_ID      6  83.55  13.926    4.21 0.00155 **
-#   Residuals   53 175.32   3.308                   
+# Host_ID      6   80.3  13.384   4.002 0.00224 **
+#   Residuals   53  177.2   3.344                   
 # ---
 #   Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
 
 
-# diff         lwr        upr     p adj
-# ABGR-ABAM -0.669580162 -3.54760394  2.2084436 0.9912283
-# ALRU-ABAM  3.019678077 -0.03292712  6.0722833 0.0543156
-# CONU-ABAM  0.176600441 -2.31584126  2.6690421 0.9999904
-# TABR-ABAM -0.966527325 -3.52726775  1.5942131 0.9069180
-# THPL-ABAM  1.351030424 -1.14141128  3.8434721 0.6441673
-# TSHE-ABAM -0.967531370 -3.45997308  1.5249103 0.8950243
-# ALRU-ABGR  3.689258238  0.31447621  7.0640403 0.0236224
-# CONU-ABGR  0.846180603 -2.03184318  3.7242044 0.9708396
-# TABR-ABGR -0.296947164 -3.23431788  2.6404236 0.9999214
-# THPL-ABGR  2.020610586 -0.85741319  4.8986344 0.3389428
-# TSHE-ABGR -0.297951208 -3.17597499  2.5800726 0.9999096
-# CONU-ALRU -2.843077635 -5.89568283  0.2095276 0.0833810
-# TABR-ALRU -3.986205402 -7.09482638 -0.8775844 0.0043784
-# THPL-ALRU -1.668647652 -4.72125285  1.3839575 0.6351514
-# TSHE-ALRU -3.987209447 -7.03981464 -0.9346042 0.0034935
-# TABR-CONU -1.143127767 -3.70386819  1.4176127 0.8159971
-# THPL-CONU  1.174429983 -1.31801172  3.6668717 0.7755524
-# TSHE-CONU -1.144131811 -3.63657352  1.3483099 0.7958352
-# THPL-TABR  2.317557750 -0.24318268  4.8782982 0.1004278
-# TSHE-TABR -0.001004045 -2.56174447  2.5597364 1.0000000
-# TSHE-THPL -2.318561794 -4.81100350  0.1738799 0.0840558
+# $Host_ID
+# diff        lwr        upr     p adj
+# ABGR-ABAM -0.68740481 -3.5813023  2.2064927 0.9902084
+# ALRU-ABAM  2.93084009 -0.1386018  6.0002819 0.0702911
+# CONU-ABAM  0.11120033 -2.3949884  2.6173891 0.9999994
+# TABR-ABAM -1.02174948 -3.5966137  1.5531147 0.8848469
+# THPL-ABAM  1.25183901 -1.2543498  3.7580278 0.7253808
+# TSHE-ABAM -0.98788271 -3.4940715  1.5183061 0.8880183
+# ALRU-ABGR  3.61824490  0.2248493  7.0116405 0.0295168 *
+# CONU-ABGR  0.79860514 -2.0952924  3.6925027 0.9787438
+# TABR-ABGR -0.33434467 -3.2879165  2.6192271 0.9998477
+# THPL-ABGR  1.93924382 -0.9546537  4.8331414 0.3947193
+# TSHE-ABGR -0.30047790 -3.1943754  2.5934196 0.9999081
+# CONU-ALRU -2.81963976 -5.8890816  0.2498021 0.0913045
+# TABR-ALRU -3.95258957 -7.0783562 -0.8268230 0.0051721 **
+# THPL-ALRU -1.67900108 -4.7484429  1.3904408 0.6344123
+# TSHE-ALRU -3.91872280 -6.9881647 -0.8492809 0.0046157 **
+# TABR-CONU -1.13294981 -3.7078140  1.4419144 0.8258306
+# THPL-CONU  1.14063868 -1.3655501  3.6468275 0.8021808
+# TSHE-CONU -1.09908304 -3.6052718  1.4071057 0.8280304
+# THPL-TABR  2.27358849 -0.3012757  4.8484527 0.1168157
+# TSHE-TABR  0.03386677 -2.5409974  2.6087310 1.0000000
+# TSHE-THPL -2.23972172 -4.7459105  0.2664671 0.1086208
+
+
+## UPDATE: Removing 13C did not change any of the significant differences between species 
+
+
+# Put species in order for plotting 
+spp_order <- c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", 
+               "T. plicata", "T. heterophylla")
+
+
+# Convert the column to a factor with the specified levels
+PC1_root_summary$sci_name <- factor(PC1_root_summary$sci_name, levels = spp_order)
+
+
+# Add in mycorrhizal associations 
+PC1_root_summary$Association <- c("ECM", "ECM", "DUAL", "AM", "DUAL", "ECM", "AM")
+
 
 
 # Visualize 
@@ -1491,25 +1571,20 @@ PC1_root_plot <- ggplot(PC1_root_summary, aes(x = sci_name, y = mean_PC1, fill =
 
 PC1_root_plot
 
-## Need to add significance values to this but they are a bit complicated, 
-# so can come back and do this 
 
 
 ### Calculate average PC2 score for each species and plot, compare statistically 
 
-PC2_root <- dplyr::select(scores.root, PC2, WFDP_Code, Host_ID)
+PC2_root <- dplyr::select(scores.root, PC2, WFDP_Code, Host_ID, sci_name)
 
 PC2_root_summary <- PC2_root %>%
-  group_by(Host_ID) %>%
+  group_by(sci_name) %>%
   summarise(
     mean_PC2 = mean(PC2, na.rm = TRUE),
     sd_PC2   = sd(PC2, na.rm = TRUE),
     n        = n(),
     se_PC2   = sd_PC2 / sqrt(n)
   )
-
-# Add in mycorrhizal associations 
-PC2_root_summary$Association <- c("ECM", "ECM", "DUAL", "AM", "DUAL", "AM", "ECM")
 
 
 # Test for significant differences between species 
@@ -1519,12 +1594,55 @@ summary(aov_PC2_root)
 tuk_PC2_root <- TukeyHSD(aov_PC2_root)
 tuk_PC2_root
 
-# NO significant differences between species
+# SIGNIFICANT differences between species
 
-# 
-# Df Sum Sq Mean Sq F value Pr(>F)
-# Host_ID      6  13.86   2.310   1.875  0.102
-# Residuals   53  65.29   1.232    
+# Df Sum Sq Mean Sq F value   Pr(>F)    
+# Host_ID      6  29.39   4.898   5.486 0.000178 ***
+#   Residuals   53  47.32   0.893                     
+# ---
+#   Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+
+
+# $Host_ID
+# diff        lwr         upr     p adj
+# ABGR-ABAM -1.17977226 -2.6749467  0.31540218 0.2116233
+# ALRU-ABAM -0.51600821 -2.1018802  1.06986376 0.9524521
+# CONU-ABAM  0.61083601 -0.6840230  1.90569505 0.7746276
+# TABR-ABAM  0.55119178 -0.7791494  1.88153298 0.8625169
+# THPL-ABAM -0.87735666 -2.1722157  0.41750238 0.3813392
+# TSHE-ABAM  0.74446677 -0.5503923  2.03932581 0.5788524
+# ALRU-ABGR  0.66376405 -1.0894834  2.41701148 0.9056858
+# CONU-ABGR  1.79060826  0.2954338  3.28578270 0.0095445 **
+# TABR-ABGR  1.73096403  0.2049580  3.25697005 0.0166594 *
+# THPL-ABGR  0.30241560 -1.1927588  1.79759003 0.9958773
+# TSHE-ABGR  1.92423902  0.4290646  3.41941346 0.0041904 **
+# CONU-ALRU  1.12684422 -0.4590278  2.71271619 0.3249093
+# TABR-ALRU  1.06719999 -0.5477730  2.68217295 0.4117011
+# THPL-ALRU -0.36134845 -1.9472204  1.22452352 0.9921491
+# TSHE-ALRU  1.26047498 -0.3253970  2.84634695 0.2045507
+# TABR-CONU -0.05964423 -1.3899854  1.27069697 0.9999994
+# THPL-CONU -1.48819266 -2.7830517 -0.19333362 0.0146296 *
+# TSHE-CONU  0.13363076 -1.1612283  1.42848980 0.9999113
+# THPL-TABR -1.42854843 -2.7588896 -0.09820723 0.0277404 *
+# TSHE-TABR  0.19327499 -1.1370662  1.52361619 0.9993557
+# TSHE-THPL  1.62182342  0.3269644  2.91668247 0.0057828 **
+
+# Now a lot of interesting differences between species 
+
+
+# Put species in order for plotting 
+spp_order <- c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", 
+               "T. plicata", "T. heterophylla")
+
+
+# Convert the column to a factor with the specified levels
+PC2_root_summary$sci_name <- factor(PC2_root_summary$sci_name, levels = spp_order)
+
+
+# Add in mycorrhizal associations 
+PC2_root_summary$Association <- c("ECM", "ECM", "DUAL", "AM", "DUAL", "ECM", "AM")
+
 
 # Visualize 
 PC2_root_plot <- ggplot(PC2_root_summary, aes(x = sci_name, y = mean_PC2, fill = Association)) +
@@ -1555,7 +1673,7 @@ PC2_root_plot
 
 # Read back in environmental data for the trees 
 
-x # Right now this is just slope, aspect, and elevation, but will be able to pull in 
+# Right now this is just slope, aspect, and elevation, but will be able to pull in 
     # krieged data when it exists 
 env <- read.csv("~/Dropbox/WSU/WFDP_Chapter_3_Project/Enviro_Data/WFDP_enviro_data_all.csv")
 
@@ -1618,7 +1736,7 @@ slope2
 lm_slope2 <- lm(PC2 ~ slope, data = tree_PCs_env)
 summary(lm_slope2) # SIGNIFICANT
 
-# Adjusted R-squared:  0.087, p-value: 0.013
+# Adjusted R-squared:  0.086, p-value: 0.013
 
 
 ## Aspect
