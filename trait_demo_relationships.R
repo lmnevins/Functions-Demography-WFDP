@@ -56,9 +56,11 @@ setwd(wd)
 ## PCA Results
 # Read in the scores values for the leaf and root PCAs
 
-scores.leaf <- read.csv("~/Dropbox/WSU/WFDP_Chapter_3_Project/Trait_Data/PCA/PCA_scores_leaf_traits.csv")
+## Using updates scores for the PCAs not including 13C 
+
+scores.leaf <- read.csv("~/Dropbox/WSU/WFDP_Chapter_3_Project/Trait_Data/PCA/PCA_scores_leaf_traits_no13C.csv")
   
-scores.root <- read.csv("~/Dropbox/WSU/WFDP_Chapter_3_Project/Trait_Data/PCA/PCA_scores_root_traits.csv")
+scores.root <- read.csv("~/Dropbox/WSU/WFDP_Chapter_3_Project/Trait_Data/PCA/PCA_scores_root_traits_no13C.csv")
   
   
 # Put WFDP code into compatible column name for merging with growth data 
@@ -69,7 +71,7 @@ scores.root$focal_stem_tag <- scores.root$WFDP_Code
 
 # Read in scores for PCA of all traits together 
 
-scores.all <- read.csv("~/Dropbox/WSU/WFDP_Chapter_3_Project/Trait_Data/PCA/tree_PC_scores.csv")
+scores.all <- read.csv("~/Dropbox/WSU/WFDP_Chapter_3_Project/Trait_Data/PCA/tree_PC_no13C__scores.csv")
 
 
 ## Tree Demography
@@ -177,9 +179,11 @@ traits <- merge(leaf, root, by = 'code')
 # subset just variables of interest, excluding petiole data since it is absent for
 # needle-leaf species 
 
+## And removing 13C here too 
+
 traits <- dplyr::select(traits, code, WFDP_Code = WFDP_Code.x, sub_plot = sub_plot.x, Host_ID = Host_ID.x, SLA_leaf, LDMC_leaf, LMA_leaf, 
-                        leaf_pct_N, leaf_pct_C, leaf_CN, leaf_15N, leaf_13C, specific_root_length, specific_root_area,
-                        root_dry_matter_cont, root_CN, root_15N, root_13C, avg_root_dia, root_pct_N, root_pct_C)
+                        leaf_pct_N, leaf_pct_C, leaf_CN, leaf_15N, specific_root_length, specific_root_area,
+                        root_dry_matter_cont, root_CN, root_15N, avg_root_dia, root_pct_N, root_pct_C)
 
 
 # Merge this traits data to the all_traits_growth_env df to use to explore individual trait 
@@ -277,11 +281,22 @@ lm_leaf_PC1_rgr_all <- lm(mean_RGR ~ PC1, data = leaf_growth_env)
 
 summary(lm_leaf_PC1_rgr_all)
 
+# lm(formula = mean_RGR ~ PC1, data = leaf_growth_env)
 # 
-# Multiple R-squared:  0.006539,	Adjusted R-squared:  -0.01059 
-# F-statistic: 0.3818 on 1 and 58 DF,  p-value: 0.5391
-
-# No significant relationship for the species all together 
+# Residuals:
+#   Min        1Q    Median        3Q       Max 
+# -0.020874 -0.008898 -0.003029  0.008704  0.030225 
+# 
+# Coefficients:
+#   Estimate Std. Error t value Pr(>|t|)    
+# (Intercept) 0.0104053  0.0014720   7.069 2.25e-09 ***
+#   PC1         0.0003933  0.0006459   0.609    0.545    
+# ---
+#   Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+# 
+# Residual standard error: 0.0114 on 58 degrees of freedom
+# Multiple R-squared:  0.006352,	Adjusted R-squared:  -0.01078 
+# F-statistic: 0.3708 on 1 and 58 DF,  p-value: 0.545
 
 
 # PC1 - For separate species
@@ -314,13 +329,13 @@ lm_leaf_PC1_rgr_sep <- lm(mean_RGR ~ PC1 * Species, data = leaf_growth_env)
 emtrends(lm_leaf_PC1_rgr_sep, ~ Species, var = "PC1") %>% test(adjust = "fdr")
 
 # Species PC1.trend      SE df t.ratio p.value
-# ABAM     -0.00669 0.00485 46  -1.377  0.3064
-# ABGR     -0.00295 0.00598 46  -0.493  0.6970
-# ALRU      0.02867 0.01070 46   2.667  0.0737
-# CONU      0.00196 0.00499 46   0.392  0.6970
-# TABR     -0.00152 0.00273 46  -0.558  0.6970
-# THPL      0.00415 0.00299 46   1.388  0.3064
-# TSHE      0.00685 0.00365 46   1.878  0.2333
+# ABAM     -0.00650 0.00484 46  -1.343  0.3251
+# ABGR     -0.00291 0.00599 46  -0.486  0.7314
+# ALRU      0.02718 0.01040 46   2.608  0.0856
+# CONU      0.00177 0.00512 46   0.345  0.7314
+# TABR     -0.00147 0.00274 46  -0.538  0.7314
+# THPL      0.00421 0.00301 46   1.399  0.3251
+# TSHE      0.00676 0.00366 46   1.849  0.2479
 
 # No significant relationships for any species 
 
@@ -328,16 +343,16 @@ anova(lm_leaf_PC1_rgr_sep)
 
 # 
 # Response: mean_RGR
-# Df    Sum Sq    Mean Sq F value    Pr(>F)    
-# PC1          1 0.0000496 0.00004963  0.6515   0.42372    
-# Species      6 0.0029733 0.00049555  6.5057 5.083e-05 ***
-#   PC1:Species  6 0.0010622 0.00017703  2.3241   0.04822 *  
-#   Residuals   46 0.0035040 0.00007617                      
+# Df    Sum Sq    Mean Sq F value   Pr(>F)    
+# PC1          1 0.0000482 0.00004821  0.6272  0.43244    
+# Species      6 0.0029758 0.00049597  6.4534 5.49e-05 ***
+#   PC1:Species  6 0.0010298 0.00017164  2.2334  0.05655 .  
+# Residuals   46 0.0035353 0.00007685                     
 # ---
 #   Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
 
 
-# RGR is different between species,and the leaf PC1 values could be driving some of the variation 
+# RGR is different between species, but doesn't seem like the leaf PC1 values could be driving some of the variation 
 # between the species 
 
 
@@ -376,9 +391,22 @@ lm_leaf_PC2_rgr_all <- lm(mean_RGR ~ PC2, data = leaf_growth_env)
 
 summary(lm_leaf_PC2_rgr_all)
 
-
-# Multiple R-squared:  0.01531,	Adjusted R-squared:  -0.001663 
-# F-statistic: 0.902 on 1 and 58 DF,  p-value: 0.3462
+# lm(formula = mean_RGR ~ PC2, data = leaf_growth_env)
+# 
+# Residuals:
+#   Min        1Q    Median        3Q       Max 
+# -0.017079 -0.008167 -0.002532  0.007552  0.033591 
+# 
+# Coefficients:
+#   Estimate Std. Error t value Pr(>|t|)    
+# (Intercept) 0.010405   0.001460   7.125 1.81e-09 ***
+#   PC2         0.001843   0.001613   1.143    0.258    
+# ---
+#   Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+# 
+# Residual standard error: 0.01131 on 58 degrees of freedom
+# Multiple R-squared:  0.02201,	Adjusted R-squared:  0.005152 
+# F-statistic: 1.306 on 1 and 58 DF,  p-value: 0.2579
 
 # No significant relationship for the species all together 
 
@@ -413,13 +441,13 @@ lm_leaf_PC2_rgr_sep <- lm(mean_RGR ~ PC2 * Species, data = leaf_growth_env)
 emtrends(lm_leaf_PC2_rgr_sep, ~ Species, var = "PC2") %>% test(adjust = "fdr")
 
 # Species PC2.trend      SE df t.ratio p.value
-# ABAM      0.00472 0.00548 46   0.861  0.9606
-# ABGR     -0.00063 0.01270 46  -0.050  0.9606
-# ALRU     -0.00117 0.01020 46  -0.114  0.9606
-# CONU     -0.00407 0.00629 46  -0.648  0.9606
-# TABR     -0.00165 0.00482 46  -0.343  0.9606
-# THPL     -0.00172 0.00458 46  -0.376  0.9606
-# TSHE     -0.00236 0.00522 46  -0.452  0.9606
+# ABAM      0.01197 0.00575 46   2.083  0.1783
+# ABGR      0.00555 0.01000 46   0.553  0.7356
+# ALRU      0.01385 0.01180 46   1.175  0.5737
+# CONU     -0.01722 0.00859 46  -2.004  0.1783
+# TABR      0.00279 0.00820 46   0.340  0.7356
+# THPL     -0.00249 0.00549 46  -0.454  0.7356
+# TSHE     -0.00400 0.00581 46  -0.688  0.7356
 
 # No significant relationships for any species 
 
@@ -428,10 +456,10 @@ anova(lm_leaf_PC2_rgr_sep)
 # 
 # Response: mean_RGR
 # Df    Sum Sq    Mean Sq F value    Pr(>F)    
-# PC2          1 0.0001162 0.00011622  1.1882 0.2813680    
-# Species      6 0.0028327 0.00047212  4.8269 0.0006768 ***
-#   PC2:Species  6 0.0001410 0.00002349  0.2402 0.9608359    
-# Residuals   46 0.0044992 0.00009781                      
+# PC2          1 0.0001671 0.00016706  2.0377 0.1601906    
+# Species      6 0.0027714 0.00046191  5.6341 0.0001892 ***
+#   PC2:Species  6 0.0008793 0.00014656  1.7876 0.1226862    
+# Residuals   46 0.0037713 0.00008198                      
 # ---
 #   Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
 
@@ -481,8 +509,20 @@ lm_root_PC1_rgr_all <- lm(mean_RGR ~ PC1, data = root_growth_env)
 summary(lm_root_PC1_rgr_all)
 
 
-# Multiple R-squared:  0.05804,	Adjusted R-squared:  0.0418 
-# F-statistic: 3.574 on 1 and 58 DF,  p-value: 0.06369
+# Residuals:
+#   Min        1Q    Median        3Q       Max 
+# -0.022055 -0.009030 -0.002947  0.007515  0.030726 
+# 
+# Coefficients:
+#   Estimate Std. Error t value Pr(>|t|)    
+# (Intercept)  0.0104053  0.0014304   7.274 1.01e-09 ***
+#   PC1         -0.0013488  0.0006904  -1.954   0.0556 .  
+# ---
+#   Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+# 
+# Residual standard error: 0.01108 on 58 degrees of freedom
+# Multiple R-squared:  0.06174,	Adjusted R-squared:  0.04556 
+# F-statistic: 3.817 on 1 and 58 DF,  p-value: 0.05558
 
 # No significant relationship for the species all together 
 
@@ -517,13 +557,13 @@ lm_root_PC1_rgr_sep <- lm(mean_RGR ~ PC1 * Species, data = root_growth_env)
 emtrends(lm_root_PC1_rgr_sep, ~ Species, var = "PC1") %>% test(adjust = "fdr")
 
 # Species PC1.trend      SE df t.ratio p.value
-# ABAM      0.00179 0.00189 46   0.948  0.4841
-# ABGR      0.00117 0.00166 46   0.705  0.4841
-# ALRU      0.00317 0.00141 46   2.251  0.2046
-# CONU     -0.00296 0.00203 46  -1.456  0.4706
-# TABR      0.00184 0.00217 46   0.850  0.4841
-# THPL     -0.00125 0.00167 46  -0.748  0.4841
-# TSHE     -0.00286 0.00221 46  -1.295  0.4706
+# ABAM      0.00158 0.00189 46   0.833  0.4806
+# ABGR      0.00120 0.00168 46   0.711  0.4806
+# ALRU      0.00304 0.00139 46   2.189  0.2358
+# CONU     -0.00295 0.00200 46  -1.476  0.3979
+# TABR      0.00184 0.00216 46   0.850  0.4806
+# THPL     -0.00132 0.00165 46  -0.800  0.4806
+# TSHE     -0.00309 0.00222 46  -1.392  0.3979
 
 # No significant relationships for any species 
 
@@ -532,10 +572,10 @@ anova(lm_root_PC1_rgr_sep)
 # 
 # Response: mean_RGR
 # Df    Sum Sq    Mean Sq F value    Pr(>F)    
-# PC1          1 0.0004405 0.00044049  5.4395 0.0241183 *  
-#   Species      6 0.0025396 0.00042326  5.2267 0.0003575 ***
-#   PC1:Species  6 0.0008839 0.00014732  1.8192 0.1162116    
-# Residuals   46 0.0037251 0.00008098                      
+# PC1          1 0.0004686 0.00046855  5.7792 0.0203022 *  
+#   Species      6 0.0024965 0.00041608  5.1319 0.0004153 ***
+#   PC1:Species  6 0.0008946 0.00014910  1.8391 0.1123067    
+# Residuals   46 0.0037295 0.00008108                      
 # ---
 #   Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
 
@@ -578,9 +618,22 @@ lm_root_PC2_rgr_all <- lm(mean_RGR ~ PC2, data = root_growth_env)
 
 summary(lm_root_PC2_rgr_all)
 
-
-# Multiple R-squared:  0.08471,	Adjusted R-squared:  0.06893 
-# F-statistic: 5.368 on 1 and 58 DF,  p-value: 0.02406
+# lm(formula = mean_RGR ~ PC2, data = root_growth_env)
+# 
+# Residuals:
+#   Min        1Q    Median        3Q       Max 
+# -0.018416 -0.008590 -0.003148  0.007428  0.033189 
+# 
+# Coefficients:
+#   Estimate Std. Error t value Pr(>|t|)    
+# (Intercept)  0.010405   0.001423   7.311  8.8e-10 ***
+#   PC2         -0.002654   0.001259  -2.108   0.0394 *  
+#   ---
+#   Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+# 
+# Residual standard error: 0.01102 on 58 degrees of freedom
+# Multiple R-squared:  0.07117,	Adjusted R-squared:  0.05516 
+# F-statistic: 4.444 on 1 and 58 DF,  p-value: 0.03935
 
 # SIGNIFICANT RELATIONSHIP for the species all together 
 
@@ -615,35 +668,33 @@ lm_root_PC2_rgr_sep <- lm(mean_RGR ~ PC2 * Species, data = root_growth_env)
 emtrends(lm_root_PC2_rgr_sep, ~ Species, var = "PC2") %>% test(adjust = "fdr")
 
 # Species PC2.trend      SE df t.ratio p.value
-# ABAM     0.007089 0.00270 46   2.629  0.0811
-# ABGR     0.003485 0.00444 46   0.784  0.6117
-# ALRU    -0.000353 0.00216 46  -0.164  0.8708
-# CONU     0.002275 0.00257 46   0.887  0.6117
-# TABR    -0.001566 0.00535 46  -0.293  0.8708
-# THPL     0.005287 0.00257 46   2.053  0.1601
-# TSHE     0.004078 0.00306 46   1.331  0.4431
+# ABAM    -0.004960 0.00342 46  -1.449  0.2695
+# ABGR    -0.001881 0.00240 46  -0.784  0.6038
+# ALRU     0.008311 0.00422 46   1.972  0.1747
+# CONU    -0.002431 0.00373 46  -0.652  0.6038
+# TABR    -0.000387 0.00383 46  -0.101  0.9201
+# THPL    -0.004421 0.00243 46  -1.823  0.1747
+# TSHE     0.015825 0.00540 46   2.932  0.0366
 
-# No significant relationships for any species 
+# Significant relationships for only TSHE
 
 anova(lm_root_PC2_rgr_sep)
 
 # 
 # Response: mean_RGR
-# Df    Sum Sq    Mean Sq F value   Pr(>F)    
-# PC2          1 0.0006429 0.00064289  8.3353 0.005906 ** 
-#   Species      6 0.0029019 0.00048364  6.2706  7.2e-05 ***
-#   PC2:Species  6 0.0004965 0.00008274  1.0728 0.392579    
-# Residuals   46 0.0035479 0.00007713                     
+# Df    Sum Sq    Mean Sq F value    Pr(>F)    
+# PC2          1 0.0005401 0.00054012  7.5296 0.0086252 ** 
+#   Species      6 0.0024413 0.00040689  5.6722 0.0001784 ***
+#   PC2:Species  6 0.0013080 0.00021799  3.0389 0.0137615 *  
+#   Residuals   46 0.0032997 0.00007173                      
 # ---
 #   Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
 
 
-# RGR is different between species, but their root PC2 values are not what is driving this. 
+# RGR is different between species, and their root PC2 values could be what is driving this. 
 
 
-## Outcome: Significant result of a relationship between RGR and the Root PC2 results, 
-# but it is no longer significant when the species are considered independently. Leaf PC1 is 
-# significant when species are considered independently. 
+## Outcome: Significant result of a relationship between RGR and the Root PC2 results.
 
 
 #################################################################################
@@ -685,8 +736,8 @@ lm_all_PC1_rgr_all <- lm(mean_RGR ~ PC1, data = all_traits_growth_env)
 summary(lm_all_PC1_rgr_all)
 
 
-# Multiple R-squared:  0.02399,	Adjusted R-squared:  0.007163 
-# F-statistic: 1.426 on 1 and 58 DF,  p-value: 0.2373
+# Multiple R-squared:  0.02707,	Adjusted R-squared:  0.0103 
+# F-statistic: 1.614 on 1 and 58 DF,  p-value: 0.209
 
 # No significant relationship for the species all together 
 
@@ -721,13 +772,13 @@ lm_all_PC1_rgr_sep <- lm(mean_RGR ~ PC1 * Species, data = all_traits_growth_env)
 emtrends(lm_all_PC1_rgr_sep, ~ Species, var = "PC1") %>% test(adjust = "fdr")
 
 # Species PC1.trend      SE df t.ratio p.value
-# ABAM     -0.00452 0.00265 46  -1.706  0.1896
-# ABGR     -0.00148 0.00209 46  -0.707  0.4831
-# ALRU     -0.00504 0.00274 46  -1.842  0.1896
-# CONU      0.00638 0.00379 46   1.683  0.1896
-# TABR     -0.00223 0.00241 46  -0.927  0.4188
-# THPL      0.00362 0.00256 46   1.414  0.2296
-# TSHE      0.00357 0.00218 46   1.637  0.1896
+# ABAM     -0.00422 0.00277 46  -1.523  0.1982
+# ABGR     -0.00154 0.00213 46  -0.722  0.4742
+# ALRU     -0.00455 0.00266 46  -1.714  0.1982
+# CONU      0.00680 0.00379 46   1.794  0.1982
+# TABR     -0.00222 0.00240 46  -0.926  0.4192
+# THPL      0.00362 0.00242 46   1.496  0.1982
+# TSHE      0.00389 0.00218 46   1.782  0.1982
 
 # No significant relationships for any species 
 
@@ -736,10 +787,10 @@ anova(lm_all_PC1_rgr_sep)
 # 
 # Response: mean_RGR
 # Df    Sum Sq    Mean Sq F value    Pr(>F)    
-# PC1          1 0.0001821 0.00018207  2.3904 0.1289369    
-# Species      6 0.0027532 0.00045887  6.0246 0.0001042 ***
-#   PC1:Species  6 0.0011501 0.00019169  2.5167 0.0343761 *  
-#   Residuals   46 0.0035037 0.00007617                      
+# PC1          1 0.0002054 0.00020544  2.7012 0.1070912    
+# Species      6 0.0027240 0.00045400  5.9693 0.0001133 ***
+#   PC1:Species  6 0.0011611 0.00019352  2.5445 0.0327407 *  
+#   Residuals   46 0.0034986 0.00007606                      
 # ---
 #   Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
 
@@ -776,8 +827,8 @@ lm_all_PC2_rgr_all <- lm(mean_RGR ~ PC2, data = all_traits_growth_env)
 summary(lm_all_PC2_rgr_all)
 
 
-# Multiple R-squared:  0.03748,	Adjusted R-squared:  0.02088 
-# F-statistic: 2.258 on 1 and 58 DF,  p-value: 0.1383
+# Multiple R-squared:  0.03697,	Adjusted R-squared:  0.02037 
+# F-statistic: 2.227 on 1 and 58 DF,  p-value: 0.1411
 
 # No significant relationship for species all together 
 
@@ -810,15 +861,15 @@ all_PC2_rgr_sep
 lm_all_PC2_rgr_sep <- lm(mean_RGR ~ PC2 * Species, data = all_traits_growth_env)
 
 emtrends(lm_all_PC2_rgr_sep, ~ Species, var = "PC2") %>% test(adjust = "fdr")
-
+# 
 # Species PC2.trend      SE df t.ratio p.value
-# ABAM     0.000923 0.00235 46   0.392  0.6965
-# ABGR     0.001723 0.00252 46   0.683  0.6965
-# ALRU     0.003639 0.00159 46   2.292  0.1858
-# CONU    -0.002769 0.00213 46  -1.300  0.6965
-# TABR     0.001532 0.00261 46   0.588  0.6965
-# THPL    -0.000909 0.00190 46  -0.478  0.6965
-# TSHE    -0.003346 0.00367 46  -0.911  0.6965
+# ABAM     0.001008 0.00235 46   0.429  0.6702
+# ABGR     0.001710 0.00251 46   0.680  0.6702
+# ALRU     0.003696 0.00160 46   2.316  0.1753
+# CONU    -0.002820 0.00215 46  -1.310  0.6702
+# TABR     0.001522 0.00258 46   0.590  0.6702
+# THPL    -0.000874 0.00192 46  -0.454  0.6702
+# TSHE    -0.003187 0.00369 46  -0.865  0.6702
 
 # No significant relationships for any species 
 
@@ -826,11 +877,11 @@ anova(lm_all_PC2_rgr_sep)
 
 # 
 # Response: mean_RGR
-# Df    Sum Sq    Mean Sq F value    Pr(>F)    
-# PC2          1 0.0002844 0.00028443  3.3553 0.0734684 .  
-# Species      6 0.0027029 0.00045049  5.3142 0.0003114 ***
-#   PC2:Species  6 0.0007023 0.00011704  1.3807 0.2425869    
-# Residuals   46 0.0038995 0.00008477                      
+# Df    Sum Sq    Mean Sq F value   Pr(>F)    
+# PC2          1 0.0002806 0.00028060  3.3138 0.075211 .  
+# Species      6 0.0027142 0.00045236  5.3422 0.000298 ***
+#   PC2:Species  6 0.0006992 0.00011653  1.3762 0.244364    
+# Residuals   46 0.0038951 0.00008468                                        
 # ---
 #   Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
 
@@ -1575,15 +1626,15 @@ summary(lm_root_13C_rgr)
 # all_PC1_rgr_all, all_PC2_rgr_all
 
 
-RGR_plots <- plot_grid(all_PC1_rgr_all, all_PC2_rgr_all,
-                       leaf_PC1_rgr_all, root_PC1_rgr_all, 
-                       leaf_PC2_rgr_all, root_PC2_rgr_all,
-                                  ncol = 2, nrow = 3, labels = c('(a)', '(b)', '(c)', '(d)', '(e)', '(f)'))
+# RGR_plots <- plot_grid(all_PC1_rgr_all, all_PC2_rgr_all,
+#                        leaf_PC1_rgr_all, root_PC1_rgr_all, 
+#                        leaf_PC2_rgr_all, root_PC2_rgr_all,
+#                                   ncol = 2, nrow = 3, labels = c('(a)', '(b)', '(c)', '(d)', '(e)', '(f)'))
+# 
+# RGR_plots
 
-RGR_plots
 
-
-# Plot with just the leaf and root traits 
+# Plot with just the leaf and root traits: 
 
 RGR_plots_2 <- plot_grid(leaf_PC1_rgr_all, root_PC1_rgr_all, 
                          leaf_PC2_rgr_all, root_PC2_rgr_all,
@@ -1598,11 +1649,11 @@ ggsave("~/Dropbox/WSU/WFDP_Chapter_3_Project/Demography/Figures/trait_RGR_plots.
 
 
 
-# Separate trait~RGR plots
+# Separate trait~RGR plots - EDIT: removing 13C from these 
 
 leaf_trait_RGR_plots <- plot_grid(leaf_sla_rgr, leaf_lma_rgr, leaf_ldmc_rgr, leaf_pctC_rgr, leaf_pctN_rgr, 
-                             leaf_CN_rgr, leaf_13C_rgr, leaf_15N_rgr,
-                             ncol = 3, nrow = 3, labels = c('(a)', '(b)', '(c)', '(d)', '(e)', '(f)', '(g)', '(h)'))
+                             leaf_CN_rgr, leaf_15N_rgr,
+                             ncol = 3, nrow = 3, labels = c('(a)', '(b)', '(c)', '(d)', '(e)', '(f)', '(g)'))
 
 leaf_trait_RGR_plots
 
@@ -1614,8 +1665,8 @@ ggsave("~/Dropbox/WSU/WFDP_Chapter_3_Project/Demography/Figures/leaf_trait_RGR_p
 
 
 root_trait_RGR_plots <- plot_grid(root_sra_rgr, root_srl_rgr, root_rdmc_rgr, root_pctC_rgr, root_pctN_rgr, 
-                                  root_CN_rgr, root_13C_rgr, root_15N_rgr, root_dia_rgr, 
-                                  ncol = 3, nrow = 3, labels = c('(a)', '(b)', '(c)', '(d)', '(e)', '(f)', '(g)', '(h)', '(i)'))
+                                  root_CN_rgr, root_15N_rgr, root_dia_rgr, 
+                                  ncol = 3, nrow = 3, labels = c('(a)', '(b)', '(c)', '(d)', '(e)', '(f)', '(g)', '(h)'))
 
 root_trait_RGR_plots
 
