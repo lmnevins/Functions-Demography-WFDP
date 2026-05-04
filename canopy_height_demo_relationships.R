@@ -556,6 +556,98 @@ tuk_height
 # surrounding canopy than ABGR 
 
 
+
+
+# Just plot mean canopy openness at 10m around each focal tree, by species 
+
+open_10_plot <- ggplot(all_canopy_growth, aes(x = sci_name, y = prop_10m_9, fill = sci_name)) +
+  geom_boxplot() +
+  theme_bw() +
+  scale_fill_manual(values=all_hosts, 
+                    name="Focal Species",
+                    breaks=c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", 
+                             "T. plicata", "T. heterophylla"),
+                    labels=c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", 
+                             "T. plicata", "T. heterophylla")) +
+  labs(title = "", y = "Proportion Canopy Openness - 10 m", x = "") +
+  theme(legend.position = "none")  +
+  theme(legend.title = element_text(colour="black", size=12, face="bold")) +
+  theme(legend.text = element_text(colour="black", size = 12)) + 
+  theme(
+    axis.text.x = element_text(size = 14, colour="black", face = "italic"),
+    axis.text.y = element_text(size = 16, colour="black"),
+    axis.title.y = element_text(size = 16, colour="black"),
+    axis.title.x = element_text(size = 12, colour="black"))
+
+open_10_plot
+
+
+# Test for significant differences between species 
+aov_open <- aov(prop_10m_9 ~ sci_name, data = all_canopy_growth)
+summary(aov_open)
+
+# Df Sum Sq Mean Sq F value Pr(>F)  
+# sci_name     6 0.4795 0.07992   3.156 0.0101 *
+#   Residuals   53 1.3423 0.02533                 
+# ---
+#   Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+tuk_open <- TukeyHSD(aov_open)
+tuk_open
+
+
+# diff         lwr          upr     p adj
+# A. grandis-A. amabilis         0.071783247 -0.18004514  0.323611630 0.9749913
+# A. rubra-A. amabilis           0.005777552 -0.26132678  0.272881888 1.0000000
+# C. nuttallii-A. amabilis      -0.040030297 -0.25812007  0.178059479 0.9975869
+# T. brevifolia-A. amabilis     -0.227966733 -0.45203268 -0.003900787 0.0436665 *
+# T. plicata-A. amabilis        -0.097075608 -0.31516538  0.121014169 0.8179960
+# T. heterophylla-A. amabilis   -0.133624833 -0.35171461  0.084464944 0.5037395
+# A. rubra-A. grandis           -0.066005695 -0.36130065  0.229289259 0.9929147
+# C. nuttallii-A. grandis       -0.111813545 -0.36364193  0.140014838 0.8197120
+# T. brevifolia-A. grandis      -0.299749980 -0.55677125 -0.042728713 0.0126131 *
+# T. plicata-A. grandis         -0.168858855 -0.42068724  0.082969528 0.3939660
+# T. heterophylla-A. grandis    -0.205408080 -0.45723646  0.046420303 0.1803753
+# C. nuttallii-A. rubra         -0.045807850 -0.31291219  0.221296486 0.9983491
+# T. brevifolia-A. rubra        -0.233744285 -0.50575003  0.038261456 0.1367346
+# T. plicata-A. rubra           -0.102853160 -0.36995750  0.164251176 0.8985654
+# T. heterophylla-A. rubra      -0.139402385 -0.40650672  0.127701950 0.6832955
+# T. brevifolia-C. nuttallii    -0.187936435 -0.41200238  0.036129510 0.1561529
+# T. plicata-C. nuttallii       -0.057045310 -0.27513509  0.161044467 0.9838196
+# T. heterophylla-C. nuttallii  -0.093594536 -0.31168431  0.124495241 0.8418795
+# T. plicata-T. brevifolia       0.130891125 -0.09317482  0.354957071 0.5604267
+# T. heterophylla-T. brevifolia  0.094341900 -0.12972405  0.318407845 0.8533557
+# T. heterophylla-T. plicata    -0.036549225 -0.25463900  0.181540551 0.9985499
+
+
+## Abies amabilis and grandis are more open than taxus 
+
+
+# Save Figure
+ggsave("~/Dropbox/WSU/WFDP_Chapter_3_Project/Demography/Figures/canopy_open_by_species.png", 
+       plot = open_10_plot, width = 10, height = 8, units = "in", dpi = 300)
+
+
+
+# Just get summary table of metrics by species 
+
+
+canopy_metrics <- dplyr::select(all_canopy_growth, Species, X9m_mean, prop_2m_9, prop_5m_9, 
+                                prop_10m_9)
+
+
+# Standard error helper function
+se <- function(x) sd(x, na.rm = TRUE) / sqrt(sum(!is.na(x)))
+
+canopy_summary <- canopy_metrics %>%
+  group_by(Species) %>%
+  summarise(across(
+    where(is.numeric), 
+    list(mean = ~mean(.x, na.rm = TRUE), se = ~se(.x)),
+    .names = "{.col}_{.fn}"))
+
+
+
 #################################################################################
 
 #########################################################################
@@ -886,7 +978,7 @@ RGR_2open_9m <- ggplot(all_canopy_growth, aes(x = prop_2m_9, y = mean_RGR, colou
     breaks = c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", "T. plicata", "T. heterophylla"), 
     name = "Focal Species",  
     labels=c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", "T. plicata", "T. heterophylla")) +
-  labs(x = "Proportion Canopy Openness 2m (%)", y = expression("Mean RGR ("*yr^{-1}*")")) +
+  labs(x = "Proportion Canopy Openness 2 m (%)", y = expression("Mean RGR ("*yr^{-1}*")")) +
   theme(
     axis.text.x = element_text(size = 11, colour="black"),
     axis.text.y = element_text(size = 11, colour="black"),
@@ -927,7 +1019,7 @@ RGR_5open_9m <- ggplot(all_canopy_growth, aes(x = prop_5m_9, y = mean_RGR, colou
     breaks = c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", "T. plicata", "T. heterophylla"), 
     name = "Focal Species",  
     labels=c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", "T. plicata", "T. heterophylla")) +
-  labs(x = "Proportion Canopy Openness 5m (%)", y = expression("Mean RGR ("*yr^{-1}*")")) +
+  labs(x = "Proportion Canopy Openness 5 m (%)", y = expression("Mean RGR ("*yr^{-1}*")")) +
   theme(
     axis.text.x = element_text(size = 11, colour="black"),
     axis.text.y = element_text(size = 11, colour="black"),
@@ -969,7 +1061,7 @@ RGR_10open_9m <- ggplot(all_canopy_growth, aes(x = prop_10m_9, y = mean_RGR, col
     breaks = c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", "T. plicata", "T. heterophylla"), 
     name = "Focal Species",  
     labels=c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", "T. plicata", "T. heterophylla")) +
-  labs(x = "Proportion Canopy Openness 10m (%)", y = expression("Mean RGR ("*yr^{-1}*")")) +
+  labs(x = "Proportion Canopy Openness 10 m (%)", y = expression("Mean RGR ("*yr^{-1}*")")) +
   theme(
     axis.text.x = element_text(size = 11, colour="black"),
     axis.text.y = element_text(size = 11, colour="black"),
