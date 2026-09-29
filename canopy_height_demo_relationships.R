@@ -28,8 +28,9 @@ library(ggspatial); packageVersion("ggspatial")
 #                               Main workflow                                   #
 #  Use the Canopy Height data derived from NEON and analyze the canopy          #
 #  characteristics in 9 and 20 m radii around each focal tree. Model the        #
-#  relationships of canopy height to the growth of each focal tree to see if    #
-#  canopy height of neighbors has an affect on the focal tree.                  # 
+#  relationships of canopy height and openness to the growth of each focal tree #
+#  to see if canopy height of neighbors and the canopy openness at different    #
+#  heights has an affect on the focal tree relative growth rate.                # 
 #                                                                               #
 #################################################################################
 
@@ -120,7 +121,8 @@ all_canopy <- merge(all_canopy, gaps_20m, by = "Stem_Tag")
 # subset 
 
 all_canopy <- dplyr::select(all_canopy, Cell, Species, Stem_Tag, X9m_mean, X20m_mean, prop_2m_9, 
-                            prop_5m_9, prop_10m_9, pr_2_20, pr_5_20, p_10_20)
+                            prop_4m_9, prop_5m_9, prop_10m_9, prop_12m_9, prop_40m_9,
+                            pr_2_20, pr_4_20, pr_5_20, p_10_20, p_12_20, p_40_20)
 
 write.csv(all_canopy, "~/Dropbox/WSU/WFDP_Chapter_3_Project/Enviro_Data/WFDP_all_canopy_data.csv", 
           row.names = FALSE)
@@ -203,8 +205,8 @@ WFDP_plot_rotated
 # focal tree coordinates to a subsetted version of the all_canopy_growth 
 
 canopy_rgr_sub <- dplyr::select(all_canopy_growth, Species, Stem_Tag, mean_RGR, Cell, X9m_mean, X9m_min, X9m_max, 
-                               X20m_mean, X20m_min, X20m_max, prop_2m_9, prop_5m_9, prop_10m_9, pr_2_20, 
-                               pr_5_20, p_10_20, sci_name)
+                               X20m_mean, X20m_min, X20m_max, prop_2m_9, prop_4m_9, prop_5m_9, prop_10m_9, prop_12m_9, 
+                               prop_40m_9, pr_2_20, pr_4_20, pr_5_20, p_10_20, p_12_20, p_40_20, sci_name)
 
 
 growth_spatial_df <- merge(focal_trees_rotated, canopy_rgr_sub, by = "Stem_Tag")
@@ -217,29 +219,10 @@ growth_spatial_df <- merge(focal_trees_rotated, canopy_rgr_sub, by = "Stem_Tag")
 ###################################################
 
 
-# 1. Mean Canopy Height - 9m radius 
-plot_mean_9m <- ggplot() +
-  geom_sf(data = wfdp_poly_rotated, fill = NA, color = "black", linewidth = 0.6) +
-  geom_sf(data = growth_spatial_df, aes(color = X9m_mean), size = 4) +
-  scale_color_gradient2(low = "tan", mid = "green4", high = "#1D2E28", # adjust so both plots use the same scale 
-                        midpoint = 25, limits = c(0, 45), 
-                       name = "Mean Canopy\nHeight (m)") +
-  scale_y_continuous(breaks = scales::pretty_breaks(n = 4)) +
-  coord_sf(expand = FALSE) +
-  theme_minimal(base_size = 12) +
-  theme(
-    legend.position = "none",
-    legend.title = element_text(colour="black", size=12, face="bold"),
-    legend.text  = element_text(colour="black", size=12),
-    axis.text    = element_text(size=1, colour="white"),
-    axis.title   = element_text(size=12, colour="black"))
-
-# removing legends for plotting too 
-
-plot_mean_9m
+#### 20 m radius ### 
 
 
-# 2. Mean Canopy Height - 20m radius 
+# 1. Mean Canopy Height - 20m radius 
 plot_mean_20m <- ggplot() +
   geom_sf(data = wfdp_poly_rotated, fill = NA, color = "black", linewidth = 0.6) +
   geom_sf(data = growth_spatial_df, aes(color = X20m_mean), size = 6) +
@@ -260,12 +243,12 @@ plot_mean_20m
 
 
 
-# 3. Percent Canopy Openness 2 m height - 20 m radius 
+# 2. Percent Canopy Openness 2 m height - 20 m radius 
 plot_2open_20m <- ggplot() +
   geom_sf(data = wfdp_poly_rotated, fill = NA, color = "black", linewidth = 0.6) +
   geom_sf(data = growth_spatial_df, aes(color = pr_2_20), size = 6) +
-  scale_color_gradient2(high = "tan", mid = "lightblue", low = "blue4", 
-                        midpoint = 0.25, limits = c(0, 0.45), 
+  scale_color_gradient2(high = "yellow3", mid = "lightblue", low = "blue4", 
+                        midpoint = 0.50, limits = c(0, 1.0), 
                         name = "Proportion Canopy\nOpenness 2m (%)") +
   scale_y_continuous(breaks = scales::pretty_breaks(n = 4)) +
   coord_sf(expand = FALSE) +
@@ -281,12 +264,33 @@ plot_2open_20m
 
 
 
+# 3. Percent Canopy Openness 4 m height - 20 m radius 
+plot_4open_20m <- ggplot() +
+  geom_sf(data = wfdp_poly_rotated, fill = NA, color = "black", linewidth = 0.6) +
+  geom_sf(data = growth_spatial_df, aes(color = pr_4_20), size = 6) +
+  scale_color_gradient2(high = "yellow3", mid = "lightblue", low = "blue4", 
+                        midpoint = 0.50, limits = c(0, 1.0), 
+                        name = "Proportion Canopy\nOpenness 4m (%)") +
+  scale_y_continuous(breaks = scales::pretty_breaks(n = 4)) +
+  coord_sf(expand = FALSE) +
+  theme_minimal(base_size = 12) +
+  theme(
+    legend.position = "none",
+    legend.title = element_text(colour="black", size=12, face="bold"),
+    legend.text  = element_text(colour="black", size=12),
+    axis.text    = element_text(size=1, colour="white"),
+    axis.title   = element_text(size=12, colour="black"))
+
+plot_4open_20m
+
+
+
 # 4. Percent Canopy Openness 5 m height - 20 m radius 
 plot_5open_20m <- ggplot() +
   geom_sf(data = wfdp_poly_rotated, fill = NA, color = "black", linewidth = 0.6) +
   geom_sf(data = growth_spatial_df, aes(color = pr_5_20), size = 6) +
-  scale_color_gradient2(high = "tan", mid = "lightblue", low = "blue4", 
-                        midpoint = 0.25, limits = c(0, 0.45), 
+  scale_color_gradient2(high = "yellow3", mid = "lightblue", low = "blue4", 
+                        midpoint = 0.50, limits = c(0, 1.0), 
                         name = "Proportion Canopy\nOpenness 5m (%)") +
   scale_y_continuous(breaks = scales::pretty_breaks(n = 4)) +
   coord_sf(expand = FALSE) +
@@ -302,12 +306,12 @@ plot_5open_20m
 
 
 
-# 6. Percent Canopy Openness 10 m height - 20 m radius 
+# 5. Percent Canopy Openness 10 m height - 20 m radius 
 plot_10open_20m <- ggplot() +
   geom_sf(data = wfdp_poly_rotated, fill = NA, color = "black", linewidth = 0.6) +
   geom_sf(data = growth_spatial_df, aes(color = p_10_20), size = 6) +
-  scale_color_gradient2(high = "tan", mid = "lightblue", low = "blue4", 
-                        midpoint = 0.25, limits = c(0, 0.45), 
+  scale_color_gradient2(high = "yellow3", mid = "lightblue", low = "blue4", 
+                        midpoint = 0.50, limits = c(0, 1.0), 
                         name = "Proportion Canopy\nOpenness 10m (%)") +
   scale_y_continuous(breaks = scales::pretty_breaks(n = 4)) +
   coord_sf(expand = FALSE) +
@@ -323,12 +327,80 @@ plot_10open_20m
 
 
 
-# 7. Percent Canopy Openness 2 m height - 9m radius 
+# 6. Percent Canopy Openness 12 m height - 20 m radius 
+plot_12open_20m <- ggplot() +
+  geom_sf(data = wfdp_poly_rotated, fill = NA, color = "black", linewidth = 0.6) +
+  geom_sf(data = growth_spatial_df, aes(color = p_12_20), size = 6) +
+  scale_color_gradient2(high = "yellow3", mid = "lightblue", low = "blue4", 
+                        midpoint = 0.50, limits = c(0, 1.0), 
+                        name = "Proportion Canopy\nOpenness 12m (%)") +
+  scale_y_continuous(breaks = scales::pretty_breaks(n = 4)) +
+  coord_sf(expand = FALSE) +
+  theme_minimal(base_size = 12) +
+  theme(
+    legend.position = "none",
+    legend.title = element_text(colour="black", size=12, face="bold"),
+    legend.text  = element_text(colour="black", size=12),
+    axis.text    = element_text(size=1, colour="white"),
+    axis.title   = element_text(size=12, colour="black"))
+
+plot_12open_20m
+
+
+
+# 7. Percent Canopy Openness 40 m height - 20 m radius 
+plot_40open_20m <- ggplot() +
+  geom_sf(data = wfdp_poly_rotated, fill = NA, color = "black", linewidth = 0.6) +
+  geom_sf(data = growth_spatial_df, aes(color = p_40_20), size = 6) +
+  scale_color_gradient2(high = "yellow3", mid = "lightblue", low = "blue4", 
+                        midpoint = 0.50, limits = c(0, 1.0), 
+                        name = "Proportion Canopy\nOpenness 40 m (%)") +
+  scale_y_continuous(breaks = scales::pretty_breaks(n = 4)) +
+  coord_sf(expand = FALSE) +
+  theme_minimal(base_size = 12) +
+  theme(
+    legend.position = "none",
+    legend.title = element_text(colour="black", size=12, face="bold"),
+    legend.text  = element_text(colour="black", size=12),
+    axis.text    = element_text(size=1, colour="white"),
+    axis.title   = element_text(size=12, colour="black"))
+
+plot_40open_20m
+
+
+
+#### 9 m radius ### 
+
+
+# 1. Mean Canopy Height - 9m radius 
+plot_mean_9m <- ggplot() +
+  geom_sf(data = wfdp_poly_rotated, fill = NA, color = "black", linewidth = 0.6) +
+  geom_sf(data = growth_spatial_df, aes(color = X9m_mean), size = 4) +
+  scale_color_gradient2(low = "tan", mid = "green4", high = "#1D2E28", # adjust so both plots use the same scale 
+                        midpoint = 25, limits = c(0, 45), 
+                        name = "Mean Canopy\nHeight (m)") +
+  scale_y_continuous(breaks = scales::pretty_breaks(n = 4)) +
+  coord_sf(expand = FALSE) +
+  theme_minimal(base_size = 12) +
+  theme(
+    legend.position = "none",
+    legend.title = element_text(colour="black", size=12, face="bold"),
+    legend.text  = element_text(colour="black", size=12),
+    axis.text    = element_text(size=1, colour="white"),
+    axis.title   = element_text(size=12, colour="black"))
+
+# removing legends for plotting too 
+
+plot_mean_9m
+
+
+
+# 2. Percent Canopy Openness 2 m height - 9m radius 
 plot_2open_9m <- ggplot() +
   geom_sf(data = wfdp_poly_rotated, fill = NA, color = "black", linewidth = 0.6) +
   geom_sf(data = growth_spatial_df, aes(color = prop_2m_9), size = 4) +
-  scale_color_gradient2(high = "tan", mid = "lightblue", low = "blue4", 
-                        midpoint = 0.375, limits = c(0, 0.75), 
+  scale_color_gradient2(high = "yellow3", mid = "lightblue", low = "blue4", 
+                        midpoint = 0.50, limits = c(0, 1.0), 
                         name = "Proportion Canopy\nOpenness 2m (%)") +
   scale_y_continuous(breaks = scales::pretty_breaks(n = 4)) +
   coord_sf(expand = FALSE) +
@@ -344,13 +416,34 @@ plot_2open_9m
 
 
 
-# 8. Percent Canopy Openness 5 m height - 9m radius 
+# 3. Percent Canopy Openness 4 m height - 9m radius 
+plot_4open_9m <- ggplot() +
+  geom_sf(data = wfdp_poly_rotated, fill = NA, color = "black", linewidth = 0.6) +
+  geom_sf(data = growth_spatial_df, aes(color = prop_4m_9), size = 4) +
+  scale_color_gradient2(high = "yellow3", mid = "lightblue", low = "blue4", 
+                        midpoint = 0.50, limits = c(0, 1.0), 
+                        name = "Proportion Canopy\nOpenness 4 m (%)") +
+  scale_y_continuous(breaks = scales::pretty_breaks(n = 4)) +
+  coord_sf(expand = FALSE) +
+  theme_minimal(base_size = 12) +
+  theme(
+    legend.position = "none",
+    legend.title = element_text(colour="black", size=12, face="bold"),
+    legend.text  = element_text(colour="black", size=12),
+    axis.text    = element_text(size=1, colour="white"),
+    axis.title   = element_text(size=12, colour="black"))
+
+plot_4open_9m
+
+
+
+# 4. Percent Canopy Openness 5 m height - 9m radius 
 plot_5open_9m <- ggplot() +
   geom_sf(data = wfdp_poly_rotated, fill = NA, color = "black", linewidth = 0.6) +
   geom_sf(data = growth_spatial_df, aes(color = prop_5m_9), size = 4) +
-  scale_color_gradient2(high = "tan", mid = "lightblue", low = "blue4", 
-                        midpoint = 0.375, limits = c(0, 0.75), 
-                        name = "Proportion Canopy\nOpenness 5m (%)") +
+  scale_color_gradient2(high = "yellow3", mid = "lightblue", low = "blue4", 
+                        midpoint = 0.50, limits = c(0, 1.0), 
+                        name = "Proportion Canopy\nOpenness 5 m (%)") +
   scale_y_continuous(breaks = scales::pretty_breaks(n = 4)) +
   coord_sf(expand = FALSE) +
   theme_minimal(base_size = 12) +
@@ -365,13 +458,13 @@ plot_5open_9m
 
 
 
-# 9. Percent Canopy Openness 10 m height - 9m radius 
+# 5. Percent Canopy Openness 10 m height - 9m radius 
 plot_10open_9m <- ggplot() +
   geom_sf(data = wfdp_poly_rotated, fill = NA, color = "black", linewidth = 0.6) +
   geom_sf(data = growth_spatial_df, aes(color = prop_10m_9), size = 4) +
-  scale_color_gradient2(high = "tan", mid = "lightblue", low = "blue4", 
-                        midpoint = 0.375, limits = c(0, 0.75), 
-                        name = "Proportion Canopy\nOpenness 10m (%)") +
+  scale_color_gradient2(high = "yellow3", mid = "lightblue", low = "blue4", 
+                        midpoint = 0.50, limits = c(0, 1.0), 
+                        name = "Proportion Canopy\nOpenness 10 m (%)") +
   scale_y_continuous(breaks = scales::pretty_breaks(n = 4)) +
   coord_sf(expand = FALSE) +
   theme_minimal(base_size = 12) +
@@ -383,6 +476,49 @@ plot_10open_9m <- ggplot() +
     axis.title   = element_text(size=12, colour="black"))
 
 plot_10open_9m
+
+
+
+# 6. Percent Canopy Openness 12 m height - 9m radius 
+plot_12open_9m <- ggplot() +
+  geom_sf(data = wfdp_poly_rotated, fill = NA, color = "black", linewidth = 0.6) +
+  geom_sf(data = growth_spatial_df, aes(color = prop_12m_9), size = 4) +
+  scale_color_gradient2(high = "yellow3", mid = "lightblue", low = "blue4", 
+                        midpoint = 0.50, limits = c(0, 1.0), 
+                        name = "Proportion Canopy\nOpenness 12 m (%)") +
+  scale_y_continuous(breaks = scales::pretty_breaks(n = 4)) +
+  coord_sf(expand = FALSE) +
+  theme_minimal(base_size = 12) +
+  theme(
+    legend.position = "none",
+    legend.title = element_text(colour="black", size=12, face="bold"),
+    legend.text  = element_text(colour="black", size=12),
+    axis.text    = element_text(size=1, colour="white"),
+    axis.title   = element_text(size=12, colour="black"))
+
+plot_12open_9m
+
+
+
+# 7. Percent Canopy Openness 40 m height - 9m radius 
+plot_40open_9m <- ggplot() +
+  geom_sf(data = wfdp_poly_rotated, fill = NA, color = "black", linewidth = 0.6) +
+  geom_sf(data = growth_spatial_df, aes(color = prop_40m_9), size = 4) +
+  scale_color_gradient2(high = "yellow3", mid = "lightblue", low = "blue4", 
+                        midpoint = 0.50, limits = c(0, 1.0), 
+                        name = "Proportion Canopy\nOpenness 40 m (%)") +
+  scale_y_continuous(breaks = scales::pretty_breaks(n = 4)) +
+  coord_sf(expand = FALSE) +
+  theme_minimal(base_size = 12) +
+  theme(
+    legend.position = "none",
+    legend.title = element_text(colour="black", size=12, face="bold"),
+    legend.text  = element_text(colour="black", size=12),
+    axis.text    = element_text(size=1, colour="white"),
+    axis.title   = element_text(size=12, colour="black"))
+
+plot_40open_9m
+
 
 
 
@@ -748,7 +884,7 @@ summary(RGR_mod1_20)
 
 # Question: Does the presence of taller neighbors affect growth more? 
 
-# Relationship between focal tree RGR and max canopy height in 9m radius 
+# Relationship between focal tree RGR and max canopy height in 9 m radius 
 RGR_max_height_9m <- ggplot(all_canopy_growth, aes(x = X9m_max, y = mean_RGR, colour = sci_name)) +
   geom_point(alpha = 1, cex = 2.5, aes(shape = sci_name)) +
   geom_smooth(method = "lm", se = TRUE, color = "black", linetype = 2) +
@@ -789,7 +925,7 @@ summary(RGR_mod2_09)
 
 
 
-# Relationship between focal tree RGR and max canopy height in 20m radius 
+# Relationship between focal tree RGR and max canopy height in 20 m radius 
 RGR_max_height_20m <- ggplot(all_canopy_growth, aes(x = X20m_max, y = mean_RGR, colour = sci_name)) +
   geom_point(alpha = 1, cex = 2.5, aes(shape = sci_name)) +
   geom_smooth(method = "lm", se = TRUE, color = "black", linetype = 2) +
@@ -834,7 +970,7 @@ summary(RGR_mod2_20)
 # tree's crown 
 
 
-# Relationship between focal tree RGR and 2m canopy openness in 20m radius 
+# Relationship between focal tree RGR and 2m canopy openness in 20 m radius 
 RGR_2open_20m <- ggplot(all_canopy_growth, aes(x = pr_2_20, y = mean_RGR, colour = sci_name)) +
   geom_point(alpha = 1, cex = 2.5, aes(shape = sci_name)) +
   geom_smooth(method = "lm", se = TRUE, color = "black", linetype = 2) +
@@ -850,7 +986,7 @@ RGR_2open_20m <- ggplot(all_canopy_growth, aes(x = pr_2_20, y = mean_RGR, colour
     breaks = c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", "T. plicata", "T. heterophylla"), 
     name = "Focal Species",  
     labels=c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", "T. plicata", "T. heterophylla")) +
-  labs(x = "Proportion Canopy Openness 2m (%)", y = expression("Mean RGR ("*yr^{-1}*")")) +
+  labs(x = "Proportion Canopy Openness 2 m (%)", y = expression("Mean RGR ("*yr^{-1}*")")) +
   theme(
     axis.text.x = element_text(size = 11, colour="black"),
     axis.text.y = element_text(size = 11, colour="black"),
@@ -875,7 +1011,50 @@ summary(RGR_mod3_20)
 # F-statistic: 0.06622 on 1 and 58 DF,  p-value: 0.7978
 
 
-# Relationship between focal tree RGR and 5m canopy openness in 20m radius 
+
+# Relationship between focal tree RGR and 4 m canopy openness in 20 m radius 
+RGR_4open_20m <- ggplot(all_canopy_growth, aes(x = pr_4_20, y = mean_RGR, colour = sci_name)) +
+  geom_point(alpha = 1, cex = 2.5, aes(shape = sci_name)) +
+  geom_smooth(method = "lm", se = TRUE, color = "black", linetype = 2) +
+  theme_bw() +
+  scale_color_manual(values=all_hosts, 
+                     name="Focal Species",
+                     breaks=c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", 
+                              "T. plicata", "T. heterophylla"),
+                     labels=c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", 
+                              "T. plicata", "T. heterophylla")) +
+  scale_shape_manual(
+    values = species_shapes, 
+    breaks = c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", "T. plicata", "T. heterophylla"), 
+    name = "Focal Species",  
+    labels=c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", "T. plicata", "T. heterophylla")) +
+  labs(x = "Proportion Canopy Openness 4 m (%)", y = expression("Mean RGR ("*yr^{-1}*")")) +
+  theme(
+    axis.text.x = element_text(size = 11, colour="black"),
+    axis.text.y = element_text(size = 11, colour="black"),
+    axis.title.y = element_text(size = 12, colour="black"),
+    axis.title.x = element_text(size = 12, colour="black"), 
+    strip.text = element_text(size = 12, colour="black")) +
+  theme(legend.text = element_text(size = 11, colour="black"), 
+        legend.title = element_text(size = 12, face = "bold", colour="black")) +
+  theme(legend.position = "none")
+
+RGR_4open_20m
+
+
+
+# The regression model
+RGR_mod4_20 <- lm(mean_RGR ~ pr_4_20, data = all_canopy_growth)
+
+summary(RGR_mod4_20)
+
+# No significant relationship
+# Multiple R-squared:  0.01428,	Adjusted R-squared:  -0.00271 
+# F-statistic: 0.8405 on 1 and 58 DF,  p-value: 0.363
+
+
+
+# Relationship between focal tree RGR and 5m canopy openness in 20 m radius 
 RGR_5open_20m <- ggplot(all_canopy_growth, aes(x = pr_5_20, y = mean_RGR, colour = sci_name)) +
   geom_point(alpha = 1, cex = 2.5, aes(shape = sci_name)) +
   geom_smooth(method = "lm", se = TRUE, color = "black", linetype = 2) +
@@ -891,7 +1070,7 @@ RGR_5open_20m <- ggplot(all_canopy_growth, aes(x = pr_5_20, y = mean_RGR, colour
     breaks = c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", "T. plicata", "T. heterophylla"), 
     name = "Focal Species",  
     labels=c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", "T. plicata", "T. heterophylla")) +
-  labs(x = "Proportion Canopy Openness 5m (%)", y = expression("Mean RGR ("*yr^{-1}*")")) +
+  labs(x = "Proportion Canopy Openness 5 m (%)", y = expression("Mean RGR ("*yr^{-1}*")")) +
   theme(
     axis.text.x = element_text(size = 11, colour="black"),
     axis.text.y = element_text(size = 11, colour="black"),
@@ -907,9 +1086,9 @@ RGR_5open_20m
 
 
 # The regression model
-RGR_mod4_20 <- lm(mean_RGR ~ pr_5_20, data = all_canopy_growth)
+RGR_mod5_20 <- lm(mean_RGR ~ pr_5_20, data = all_canopy_growth)
 
-summary(RGR_mod4_20)
+summary(RGR_mod5_20)
 
 # No significant relationship
 # Multiple R-squared:  0.0283,	Adjusted R-squared:  0.01154 
@@ -917,7 +1096,7 @@ summary(RGR_mod4_20)
 
 
 
-# Relationship between focal tree RGR and 10m canopy openness in 20m radius 
+# Relationship between focal tree RGR and 10m canopy openness in 20 m radius 
 RGR_10open_20m <- ggplot(all_canopy_growth, aes(x = p_10_20, y = mean_RGR, colour = sci_name)) +
   geom_point(alpha = 1, cex = 2.5, aes(shape = sci_name)) +
   geom_smooth(method = "lm", se = TRUE, color = "black", linetype = 1) +
@@ -933,7 +1112,7 @@ RGR_10open_20m <- ggplot(all_canopy_growth, aes(x = p_10_20, y = mean_RGR, colou
     breaks = c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", "T. plicata", "T. heterophylla"), 
     name = "Focal Species",  
     labels=c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", "T. plicata", "T. heterophylla")) +
-  labs(x = "Proportion Canopy Openness 10m (%)", y = expression("Mean RGR ("*yr^{-1}*")")) +
+  labs(x = "Proportion Canopy Openness 10 m (%)", y = expression("Mean RGR ("*yr^{-1}*")")) +
   theme(
     axis.text.x = element_text(size = 11, colour="black"),
     axis.text.y = element_text(size = 11, colour="black"),
@@ -949,9 +1128,9 @@ RGR_10open_20m
 
 
 # The regression model
-RGR_mod5_20 <- lm(mean_RGR ~ p_10_20, data = all_canopy_growth)
+RGR_mod6_20 <- lm(mean_RGR ~ p_10_20, data = all_canopy_growth)
 
-summary(RGR_mod5_20)
+summary(RGR_mod6_20)
 
 # Significant relationship
 # Multiple R-squared:  0.07291,	Adjusted R-squared:  0.05692 
@@ -959,10 +1138,93 @@ summary(RGR_mod5_20)
 
 
 
+# Relationship between focal tree RGR and 12 m canopy openness in 20 m radius 
+RGR_12open_20m <- ggplot(all_canopy_growth, aes(x = p_12_20, y = mean_RGR, colour = sci_name)) +
+  geom_point(alpha = 1, cex = 2.5, aes(shape = sci_name)) +
+  geom_smooth(method = "lm", se = TRUE, color = "black", linetype = 1) +
+  theme_bw() +
+  scale_color_manual(values=all_hosts, 
+                     name="Focal Species",
+                     breaks=c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", 
+                              "T. plicata", "T. heterophylla"),
+                     labels=c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", 
+                              "T. plicata", "T. heterophylla")) +
+  scale_shape_manual(
+    values = species_shapes, 
+    breaks = c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", "T. plicata", "T. heterophylla"), 
+    name = "Focal Species",  
+    labels=c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", "T. plicata", "T. heterophylla")) +
+  labs(x = "Proportion Canopy Openness 12 m (%)", y = expression("Mean RGR ("*yr^{-1}*")")) +
+  theme(
+    axis.text.x = element_text(size = 11, colour="black"),
+    axis.text.y = element_text(size = 11, colour="black"),
+    axis.title.y = element_text(size = 12, colour="black"),
+    axis.title.x = element_text(size = 12, colour="black"), 
+    strip.text = element_text(size = 12, colour="black")) +
+  theme(legend.text = element_text(size = 11, colour="black"), 
+        legend.title = element_text(size = 12, face = "bold", colour="black")) +
+  theme(legend.position = "none")
+
+RGR_12open_20m
+
+
+
+# The regression model
+RGR_mod7_20 <- lm(mean_RGR ~ p_12_20, data = all_canopy_growth)
+
+summary(RGR_mod7_20)
+
+# Significant relationship
+# Multiple R-squared:  0.08664,	Adjusted R-squared:  0.07089 
+# F-statistic: 5.502 on 1 and 58 DF,  p-value: 0.02244
+
+
+
+# Relationship between focal tree RGR and 40 m canopy openness in 20 m radius 
+RGR_40open_20m <- ggplot(all_canopy_growth, aes(x = p_40_20, y = mean_RGR, colour = sci_name)) +
+  geom_point(alpha = 1, cex = 2.5, aes(shape = sci_name)) +
+  geom_smooth(method = "lm", se = TRUE, color = "black", linetype = 2) +
+  theme_bw() +
+  scale_color_manual(values=all_hosts, 
+                     name="Focal Species",
+                     breaks=c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", 
+                              "T. plicata", "T. heterophylla"),
+                     labels=c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", 
+                              "T. plicata", "T. heterophylla")) +
+  scale_shape_manual(
+    values = species_shapes, 
+    breaks = c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", "T. plicata", "T. heterophylla"), 
+    name = "Focal Species",  
+    labels=c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", "T. plicata", "T. heterophylla")) +
+  labs(x = "Proportion Canopy Openness 40 m (%)", y = expression("Mean RGR ("*yr^{-1}*")")) +
+  theme(
+    axis.text.x = element_text(size = 11, colour="black"),
+    axis.text.y = element_text(size = 11, colour="black"),
+    axis.title.y = element_text(size = 12, colour="black"),
+    axis.title.x = element_text(size = 12, colour="black"), 
+    strip.text = element_text(size = 12, colour="black")) +
+  theme(legend.text = element_text(size = 11, colour="black"), 
+        legend.title = element_text(size = 12, face = "bold", colour="black")) +
+  theme(legend.position = "none")
+
+RGR_40open_20m
+
+
+
+# The regression model
+RGR_mod8_20 <- lm(mean_RGR ~ p_40_20, data = all_canopy_growth)
+
+summary(RGR_mod8_20)
+
+# NOT Significant relationship
+# Multiple R-squared:  0.001452,	Adjusted R-squared:  -0.01576 
+# F-statistic: 0.08431 on 1 and 58 DF,  p-value: 0.7726
+
+
 
 ##### Then repeating for the 9m radius for canopy openness 
 
-# Relationship between focal tree RGR and 2m canopy openness in 9m radius 
+# Relationship between focal tree RGR and 2m canopy openness in 9 m radius 
 RGR_2open_9m <- ggplot(all_canopy_growth, aes(x = prop_2m_9, y = mean_RGR, colour = sci_name)) +
   geom_point(alpha = 1, cex = 2.5, aes(shape = sci_name)) +
   geom_smooth(method = "lm", se = TRUE, color = "black", linetype = 2) +
@@ -994,16 +1256,60 @@ RGR_2open_9m
 
 
 # The regression model
-RGR_mod6_09 <- lm(mean_RGR ~ prop_2m_9, data = all_canopy_growth)
+RGR_mod1_09 <- lm(mean_RGR ~ prop_2m_9, data = all_canopy_growth)
 
-summary(RGR_mod6_09)
+summary(RGR_mod1_09)
 
 # No significant relationship
 # Multiple R-squared:  0.008002,	Adjusted R-squared:  -0.009101 
 # F-statistic: 0.4679 on 1 and 58 DF,  p-value: 0.4967
 
 
-# Relationship between focal tree RGR and 5m canopy openness in 9m radius 
+
+
+# Relationship between focal tree RGR and 4 m canopy openness in 9 m radius 
+RGR_4open_9m <- ggplot(all_canopy_growth, aes(x = prop_4m_9, y = mean_RGR, colour = sci_name)) +
+  geom_point(alpha = 1, cex = 2.5, aes(shape = sci_name)) +
+  geom_smooth(method = "lm", se = TRUE, color = "black", linetype = 1) +
+  theme_bw() +
+  scale_color_manual(values=all_hosts, 
+                     name="Focal Species",
+                     breaks=c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", 
+                              "T. plicata", "T. heterophylla"),
+                     labels=c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", 
+                              "T. plicata", "T. heterophylla")) +
+  scale_shape_manual(
+    values = species_shapes, 
+    breaks = c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", "T. plicata", "T. heterophylla"), 
+    name = "Focal Species",  
+    labels=c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", "T. plicata", "T. heterophylla")) +
+  labs(x = "Proportion Canopy Openness 4 m (%)", y = expression("Mean RGR ("*yr^{-1}*")")) +
+  theme(
+    axis.text.x = element_text(size = 11, colour="black"),
+    axis.text.y = element_text(size = 11, colour="black"),
+    axis.title.y = element_text(size = 12, colour="black"),
+    axis.title.x = element_text(size = 12, colour="black"), 
+    strip.text = element_text(size = 12, colour="black")) +
+  theme(legend.text = element_text(size = 11, colour="black"), 
+        legend.title = element_text(size = 12, face = "bold", colour="black")) +
+  theme(legend.position = "none")
+
+RGR_4open_9m
+
+
+
+# The regression model
+RGR_mod2_09 <- lm(mean_RGR ~ prop_4m_9, data = all_canopy_growth)
+
+summary(RGR_mod2_09)
+
+# Significant relationship
+# Multiple R-squared:  0.07231,	Adjusted R-squared:  0.05632 
+# F-statistic: 4.521 on 1 and 58 DF,  p-value: 0.03775
+
+
+
+# Relationship between focal tree RGR and 5 m canopy openness in 9 m radius 
 RGR_5open_9m <- ggplot(all_canopy_growth, aes(x = prop_5m_9, y = mean_RGR, colour = sci_name)) +
   geom_point(alpha = 1, cex = 2.5, aes(shape = sci_name)) +
   geom_smooth(method = "lm", se = TRUE, color = "black", linetype = 1) +
@@ -1035,9 +1341,9 @@ RGR_5open_9m
 
 
 # The regression model
-RGR_mod7_09 <- lm(mean_RGR ~ prop_5m_9, data = all_canopy_growth)
+RGR_mod3_09 <- lm(mean_RGR ~ prop_5m_9, data = all_canopy_growth)
 
-summary(RGR_mod7_09)
+summary(RGR_mod3_09)
 
 # Significant relationship
 # Multiple R-squared:  0.1238,	Adjusted R-squared:  0.1087 
@@ -1045,7 +1351,7 @@ summary(RGR_mod7_09)
 
 
 
-# Relationship between focal tree RGR and 10m canopy openness in 9m radius 
+# Relationship between focal tree RGR and 10 m canopy openness in 9 m radius 
 RGR_10open_9m <- ggplot(all_canopy_growth, aes(x = prop_10m_9, y = mean_RGR, colour = sci_name)) +
   geom_point(alpha = 1, cex = 2.5, aes(shape = sci_name)) +
   geom_smooth(method = "lm", se = TRUE, color = "black", linetype = 1) +
@@ -1077,14 +1383,100 @@ RGR_10open_9m
 
 
 # The regression model
-RGR_mod8_09 <- lm(mean_RGR ~ prop_10m_9, data = all_canopy_growth)
+RGR_mod4_09 <- lm(mean_RGR ~ prop_10m_9, data = all_canopy_growth)
 
-summary(RGR_mod8_09)
+summary(RGR_mod4_09)
 
 # Significant relationship
 # Multiple R-squared:  0.2404,	Adjusted R-squared:  0.2273 
 # F-statistic: 18.35 on 1 and 58 DF,  p-value: 7e-05
 
+
+
+# Relationship between focal tree RGR and 12 m canopy openness in 9 m radius 
+RGR_12open_9m <- ggplot(all_canopy_growth, aes(x = prop_12m_9, y = mean_RGR, colour = sci_name)) +
+  geom_point(alpha = 1, cex = 2.5, aes(shape = sci_name)) +
+  geom_smooth(method = "lm", se = TRUE, color = "black", linetype = 1) +
+  theme_bw() +
+  scale_color_manual(values=all_hosts, 
+                     name="Focal Species",
+                     breaks=c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", 
+                              "T. plicata", "T. heterophylla"),
+                     labels=c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", 
+                              "T. plicata", "T. heterophylla")) +
+  scale_shape_manual(
+    values = species_shapes, 
+    breaks = c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", "T. plicata", "T. heterophylla"), 
+    name = "Focal Species",  
+    labels=c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", "T. plicata", "T. heterophylla")) +
+  labs(x = "Proportion Canopy Openness 12 m (%)", y = expression("Mean RGR ("*yr^{-1}*")")) +
+  theme(
+    axis.text.x = element_text(size = 11, colour="black"),
+    axis.text.y = element_text(size = 11, colour="black"),
+    axis.title.y = element_text(size = 12, colour="black"),
+    axis.title.x = element_text(size = 12, colour="black"), 
+    strip.text = element_text(size = 12, colour="black")) +
+  theme(legend.text = element_text(size = 11, colour="black", face = "italic"), 
+        legend.title = element_text(size = 12, face = "bold", colour="black")) +
+  theme(legend.position = "bottom") +
+  guides(color = guide_legend(nrow = 3, ncol = 4))
+
+RGR_12open_9m
+
+
+
+# The regression model
+RGR_mod5_09 <- lm(mean_RGR ~ prop_12m_9, data = all_canopy_growth)
+
+summary(RGR_mod5_09)
+
+# Significant relationship
+# Residual standard error: 0.009905 on 58 degrees of freedom
+# Multiple R-squared:  0.2502,	Adjusted R-squared:  0.2373 
+# F-statistic: 19.36 on 1 and 58 DF,  p-value: 4.703e-05
+
+
+
+# Relationship between focal tree RGR and 40 m canopy openness in 9 m radius 
+RGR_40open_9m <- ggplot(all_canopy_growth, aes(x = prop_40m_9, y = mean_RGR, colour = sci_name)) +
+  geom_point(alpha = 1, cex = 2.5, aes(shape = sci_name)) +
+  geom_smooth(method = "lm", se = TRUE, color = "black", linetype = 2) +
+  theme_bw() +
+  scale_color_manual(values=all_hosts, 
+                     name="Focal Species",
+                     breaks=c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", 
+                              "T. plicata", "T. heterophylla"),
+                     labels=c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", 
+                              "T. plicata", "T. heterophylla")) +
+  scale_shape_manual(
+    values = species_shapes, 
+    breaks = c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", "T. plicata", "T. heterophylla"), 
+    name = "Focal Species",  
+    labels=c("A. amabilis", "A. grandis", "A. rubra", "C. nuttallii", "T. brevifolia", "T. plicata", "T. heterophylla")) +
+  labs(x = "Proportion Canopy Openness 40 m (%)", y = expression("Mean RGR ("*yr^{-1}*")")) +
+  theme(
+    axis.text.x = element_text(size = 11, colour="black"),
+    axis.text.y = element_text(size = 11, colour="black"),
+    axis.title.y = element_text(size = 12, colour="black"),
+    axis.title.x = element_text(size = 12, colour="black"), 
+    strip.text = element_text(size = 12, colour="black")) +
+  theme(legend.text = element_text(size = 11, colour="black"), 
+        legend.title = element_text(size = 12, face = "bold", colour="black")) +
+  theme(legend.position = "none")
+
+RGR_40open_9m
+
+
+
+# The regression model
+RGR_mod6_09 <- lm(mean_RGR ~ prop_40m_9, data = all_canopy_growth)
+
+summary(RGR_mod6_09)
+
+# NOT Significant relationship
+# Residual standard error: 0.01136 on 58 degrees of freedom
+# Multiple R-squared:  0.01351,	Adjusted R-squared:  -0.003496 
+# F-statistic: 0.7945 on 1 and 58 DF,  p-value: 0.3764
 
 
 ############################################## -- 
@@ -1096,27 +1488,29 @@ summary(RGR_mod8_09)
 
 
 # Spatial plots with canopy openness for 9m radius 
-spatial_plots <- plot_grid(plot_mean_9m, plot_2open_9m, plot_5open_9m, plot_10open_9m,
-                           ncol = 1, nrow = 4, labels = c('(a)', '(b)', '(c)', '(d)'))
+spatial_plots <- plot_grid(plot_mean_9m, plot_2open_9m, plot_4open_9m, plot_5open_9m, plot_10open_9m,
+                           plot_12open_9m, plot_40open_9m,
+                           ncol = 2, nrow = 4, labels = c('(a)', '(b)', '(c)', '(d)', '(e)', '(f)', '(g)'))
 
 spatial_plots
 
 
 # Save figure
-ggsave("~/Dropbox/WSU/WFDP_Chapter_3_Project/Demography/Figures/canopy_spatial_plots.png", 
-       plot = spatial_plots, width = 8, height = 13, units = "in", dpi = 300)
+ggsave("~/Dropbox/WSU/WFDP_Chapter_3_Project/Demography/Figures/canopy_spatial_plots2.png", 
+       plot = spatial_plots, width = 14.3, height = 12, units = "in", dpi = 300)
 
 
 # Organize and number plots for the growth relationships with mean canopy height 
-canopy_plots <- plot_grid(RGR_height_9m, RGR_2open_9m, RGR_5open_9m, RGR_10open_9m,
-                          ncol = 2, nrow = 2, labels = c('(a)', '(b)', '(c)', '(d)', '(e)'))
+canopy_plots <- plot_grid(RGR_height_9m, RGR_2open_9m, RGR_4open_9m, RGR_5open_9m, RGR_10open_9m,
+                          RGR_12open_9m, RGR_40open_9m,
+                          ncol = 2, nrow = 4, labels = c('(a)', '(b)', '(c)', '(d)', '(e)', '(f)', '(g)'))
 
 canopy_plots
 
 
 # Save figure 
-ggsave("~/Dropbox/WSU/WFDP_Chapter_3_Project/Demography/Figures/canopy_RGR_plots.png", 
-       plot = canopy_plots, width = 8, height = 7, units = "in", dpi = 300)
+ggsave("~/Dropbox/WSU/WFDP_Chapter_3_Project/Demography/Figures/canopy_RGR_plots2.png", 
+       plot = canopy_plots, width = 8, height = 11, units = "in", dpi = 300)
 
 
 ## -- END -- ## 
