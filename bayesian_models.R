@@ -397,7 +397,8 @@ plot(conditional_effects(mod_02, effects = "root_PC2"), points = TRUE)
 # Run the model 
 mod_03 <- brm(mean_RGR ~ leaf_PC1 + leaf_PC2 + root_PC1 + root_PC2 + (1| Species), 
               data = mod_df, family = student(),
-              prior = priors, backend = "cmdstanr", chains = 5, iter = 10000, warmup = 1000, adapt_delta = 0.95)
+              prior = priors, backend = "cmdstanr", save_pars = save_pars(all = TRUE),
+              chains = 5, iter = 10000, warmup = 1000, adapt_delta = 0.975)
 
 summary(mod_03)
 pp_check(mod_03)
@@ -518,7 +519,7 @@ mcmc_trace(mod_09)
 mod_10 <- brm(mean_RGR ~ leaf_PC1*diff_myco_09_num_neigh_std*can_open_10_09_std + (1| Species), 
               data = mod_df, family = student(),
               prior = priors, backend = "cmdstanr", save_pars = save_pars(all = TRUE), 
-              chains = 5, iter = 10000, warmup = 1000, adapt_delta = 0.85)
+              chains = 5, iter = 10000, warmup = 1000, adapt_delta = 0.95)
 
 summary(mod_10)
 pp_check(mod_10)
@@ -535,7 +536,7 @@ mcmc_trace(mod_10)
 
 loo_01 <- loo(mod_01)
 loo_02 <- loo(mod_02)
-loo_03 <- loo(mod_03)
+loo_03 <- loo(mod_03, moment_match = TRUE)
 loo_04 <- loo(mod_04, moment_match = TRUE)
 loo_05 <- loo(mod_05)
 loo_06 <- loo(mod_06) 
